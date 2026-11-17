@@ -412,3 +412,53 @@ class AlmacenSinNegocioTests(TestCase):
         respuesta = self.client.post(reverse("inventory:almacen_add"), {"nombre": "Bodega general", "direccion": ""})
         self.assertEqual(respuesta.status_code, 302)
         self.assertIsNone(Almacen.objects.get(nombre="Bodega general").negocio)
+
+
+class CategoriaEnProductoTests(TestCase):
+    """El producto puede usar una categoría existente o crear una escribiéndola."""
+
+    @classmethod
+    def setUpTestData(cls):
+        for nombre, valor in crear_datos().items():
+            setattr(cls, nombre, valor)
+
+    def setUp(self):
+        self.client.force_login(self.usuario)
+
+    def crear(self, **extras):
+        datos = {"nombre": "Leche entera", "sku": "LEC-001", "categoria_id": "", "nueva_categoria": "",
+                 "medida": self.medida.pk, "precio": "22.00", "stock_min": "3", "almacen": self.almacen.pk}
+        datos.update(extras)
+        return self.client.post(reverse("inventory:add"), datos)
+
+    def test_formulario_ofrece_el_campo_de_categoria_nueva(self):
+        respuesta = self.client.get(reverse("inventory:add"))
+        self.assertContains(respuesta, "id_nueva_categoria")
+
+    def test_crea_la_categoria_escrita_y_la_asigna(self):
+        respuesta = self.crear(nueva_categoria="  Lácteos  ")
+        self.assertEqual(respuesta.status_code, 302)
+        categoria = Categoria.objects.get(nombre="Lácteos")
+        self.assertEqual(Producto.objects.get(sku="LEC-001").categoria_id, categoria)
+
+    def test_reutiliza_la_categoria_existente_sin_importar_mayusculas(self):
+        total = Categoria.objects.count()
+        self.crear(nueva_categoria=self.categoria.nombre.upper())
+        self.assertEqual(Categoria.objects.count(), total)
+        self.assertEqual(Producto.objects.get(sku="LEC-001").categoria_id, self.categoria)
+
+    def test_elegir_de_la_lista_sigue_funcionando(self):
+        self.assertEqual(self.crear(categoria_id=self.categoria.pk).status_code, 302)
+        self.assertEqual(Producto.objects.get(sku="LEC-001").categoria_id, self.categoria)
+
+    def test_sin_categoria_se_rechaza(self):
+        respuesta = self.crear()
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("categoria_id", respuesta.context["form"].errors)
+        self.assertFalse(Producto.objects.filter(sku="LEC-001").exists())
+
+    def test_no_crea_categoria_si_el_formulario_tiene_otros_errores(self):
+        total = Categoria.objects.count()
+        respuesta = self.crear(nueva_categoria="Fantasma", precio="")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(Categoria.objects.count(), total)

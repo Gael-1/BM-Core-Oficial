@@ -24,6 +24,19 @@ class addProductForm(forms.ModelForm):
         ),
     )
 
+    nueva_categoria = forms.CharField(
+        required=False,
+        max_length=100,
+        label="O escribe una categoría nueva",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Ej. Lácteos (si ya existe, se usa la existente)",
+                "autocomplete": "off",
+            }
+        ),
+    )
+
     # Selección de Almacén para trazabilidad
     almacen = forms.ModelChoiceField(
         queryset=Almacen.objects.all(),
@@ -96,8 +109,18 @@ class addProductForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["categoria_id"].empty_label = "Selecciona una categoría"
+        # Se puede elegir una existente o escribir una nueva; clean() exige al menos una.
+        self.fields["categoria_id"].required = False
         self.fields["medida"].empty_label = "Selecciona una medida"
         self.fields["almacen"].empty_label = "Selecciona un almacén"
+
+    field_order = [
+        "sku", "codigo_barras", "nombre", "categoria_id", "nueva_categoria",
+        "descripcion", "precio", "stock_min", "imagen", "medida",
+    ]
+
+    def clean_nueva_categoria(self):
+        return " ".join((self.cleaned_data.get("nueva_categoria") or "").split())
 
     def clean_codigo_barras(self):
         codigo = self.cleaned_data.get("codigo_barras")
@@ -127,6 +150,19 @@ class addProductForm(forms.ModelForm):
             self.add_error("cantidad", "Ingresa la cantidad inicial.")
         if self.instance.pk and datos.get("cantidad_nueva") is not None and datos.get("cantidad_actual") is None:
             self.add_error("cantidad_actual", "Recarga la página para consultar la existencia actual.")
+
+        nueva = datos.get("nueva_categoria")
+        if nueva and not datos.get("categoria_id"):
+            if not self.errors:  # solo se crea la categoría si lo demás está bien
+                categoria = Categoria.objects.filter(nombre__iexact=nueva).first()
+                if categoria is None:
+                    categoria = Categoria.objects.create(nombre=nueva)
+                elif not categoria.activo:
+                    categoria.activo = True
+                    categoria.save(update_fields=["activo"])
+                datos["categoria_id"] = categoria
+        elif not datos.get("categoria_id") and not self.errors.get("categoria_id"):
+            self.add_error("categoria_id", "Selecciona una categoría o escribe una nueva.")
         return datos
 
 
