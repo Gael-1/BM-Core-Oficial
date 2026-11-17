@@ -59,9 +59,11 @@ def _exportar_csv(movimientos):
     respuesta.write("\ufeff")  # BOM para que Excel respete los acentos
     escritor = csv.writer(respuesta)
     escritor.writerow(["Fecha", "Producto", "Tipo", "Cantidad", "Cantidad anterior",
-                       "Motivo", "Proveedor", "Orden de compra", "Usuario", "Comentarios"])
+                       "Motivo", "Proveedor", "Orden de compra", "Usuario", "Comentarios",
+                       "Almacén origen", "Almacén destino"])
     movimientos = movimientos.select_related(
-        "inventario_producto_id__producto_id", "orden_compra__proveedor", "motivo", "creado_por"
+        "inventario_producto_id__producto_id", "orden_compra__proveedor", "motivo", "creado_por",
+        "almacen_origen", "almacen_destino",
     )
     for m in movimientos:
         inventario = m.inventario_producto_id
@@ -77,6 +79,8 @@ def _exportar_csv(movimientos):
             _celda(orden.numero_de_orden if orden else ""),
             _celda(m.creado_por.username),
             _celda(m.comentarios),
+            _celda(m.almacen_origen.nombre if m.almacen_origen else ""),
+            _celda(m.almacen_destino.nombre if m.almacen_destino else ""),
         ])
     return respuesta
 

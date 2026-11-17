@@ -169,6 +169,40 @@ class Inventario_Producto(models.Model):
         return f"{self.producto_id.nombre} - {self.cantidad}"
 
 
+class Existencia_Almacen(models.Model):
+    """Cuánto de un producto hay en cada almacén.
+
+    La suma de estas filas más lo "sin asignar" es siempre `Inventario_Producto.cantidad`.
+    """
+
+    inventario = models.ForeignKey(
+        Inventario_Producto,
+        verbose_name="Inventario",
+        on_delete=models.CASCADE,
+        related_name="existencias",
+    )
+    almacen = models.ForeignKey(
+        Almacen,
+        verbose_name="Almacén",
+        on_delete=models.PROTECT,
+        related_name="existencias",
+    )
+    cantidad = models.FloatField(verbose_name="Cantidad", default=0)
+    modificado = models.DateTimeField(verbose_name="Fecha de Modificado", auto_now=True)
+
+    class Meta:
+        verbose_name = "Existencia por almacén"
+        verbose_name_plural = "Existencias por almacén"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["inventario", "almacen"], name="uniq_existencia_inventario_almacen"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.inventario.producto_id.nombre} @ {self.almacen.nombre}: {self.cantidad}"
+
+
 class Registro_Inventario(models.Model):
     """Model definition for Registro_Inventario."""
 

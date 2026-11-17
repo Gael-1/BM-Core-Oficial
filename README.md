@@ -6,7 +6,7 @@ Sistema web de gestión de inventarios y proveedores (Proyecto Integrador 2, Equ
 
 | Módulo | Qué hace |
 |---|---|
-| `inventory` | Productos, existencias, alertas de stock mínimo, búsqueda por código, **entradas/salidas manuales con motivo** e **historial de movimientos** |
+| `inventory` | Productos, existencias, alertas de stock mínimo, búsqueda por código, **entradas/salidas manuales con motivo**, **historial de movimientos**, **almacenes y traspasos** con existencias por ubicación |
 | `categorias` | Alta y edición de categorías de producto |
 | `proveedores` | Proveedores, contactos y productos que surte cada uno |
 | `compra` | Órdenes de compra: crear → autorizar/rechazar → recibir (actualiza existencias) |
@@ -64,4 +64,4 @@ Despliegue rápido con Docker: `cp .env.example .env` → `docker compose up -d 
 
 ## Pendiente / ideas futuras
 
-- Traspasos entre almacenes (hoy hay una sola existencia por producto) y unificar `Inventario_Producto` con `Negocio_Inventario`.
+- Unificar `Negocio_Inventario` con el desglose por almacén (hoy son dos fuentes de existencia).

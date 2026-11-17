@@ -10,7 +10,7 @@ from negocio.models import Negocio
 from proveedores.models import Proveedor, ProductosProveedor, RegimenFiscal
 from inventory.forms import addProductForm
 from inventory.models import Almacen, Inventario_Producto, Medidas_Inventario, Producto, Registro_Inventario
-from inventory import views
+from inventory import services, views
 
 
 def crear_datos():
@@ -222,3 +222,183 @@ class MovimientosTests(TestCase):
         self.assertEqual(salidas.context["page_obj"].paginator.count, 1)
         otro = self.client.get(reverse("inventory:historial"), {"producto": self.producto.pk + 999})
         self.assertEqual(otro.context["page_obj"].paginator.count, 0)
+
+
+class AlmacenesTests(TestCase):
+    """Existencias por almacén, traspasos y administración de almacenes."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from inventory.models import motivo_movimiento
+
+        for nombre, valor in crear_datos().items():
+            setattr(cls, nombre, valor)
+        cls.otro = Almacen.objects.create(nombre="Secundario", negocio=cls.negocio)
+        cls.motivo = motivo_movimiento.objects.create(nombre="Motivo almacenes")
+
+    def setUp(self):
+        self.client.force_login(self.usuario)
+
+    def traspasar(self, origen, destino, cantidad, **extras):
+        datos = {"producto": self.producto.pk, "almacen_origen": origen.pk if origen else "",
+                 "almacen_destino": destino.pk if destino else "", "cantidad": cantidad}
+        datos.update(extras)
+        return self.client.post(reverse("inventory:traspaso"), datos)
+
+    def movimiento(self, **extras):
+        datos = {"producto": self.producto.pk, "tipo_movimiento": "SALIDA", "cantidad": "1",
+                 "motivo": self.motivo.pk}
+        datos.update(extras)
+        return self.client.post(reverse("inventory:movimiento"), datos)
+
+    def existencia(self, almacen):
+        self.inventario.refresh_from_db()
+        return services.existencia_en(self.inventario, almacen)
+
+    def ajustar(self, **extras):
+        datos = {"nombre": "Producto", "sku": "TEST-1", "categoria_id": self.categoria.pk,
+                 "medida": self.medida.pk, "precio": "12.50", "stock_min": "2",
+                 "cantidad_actual": "10", "almacen": self.almacen.pk}
+        datos.update(extras)
+        request = solicitud(self.usuario, "/inventory/", datos)
+        with patch("inventory.views.render", side_effect=lambda request, template, context: context):
+            return views.edit(request, self.producto.pk)
+
+    # --- traspasos
+    def test_traspaso_mueve_existencias_sin_cambiar_el_total(self):
+        respuesta = self.traspasar(self.almacen, self.otro, "4")
+        self.assertRedirects(respuesta, reverse("inventory:inventario_por_almacen"), fetch_redirect_response=False)
+        self.assertEqual(self.existencia(self.almacen), 6)
+        self.assertEqual(self.existencia(self.otro), 4)
+        self.assertEqual(self.inventario.cantidad, 10)
+        registro = Registro_Inventario.objects.get()
+        self.assertEqual(registro.tipo_movimiento, "TRASPASO")
+        self.assertEqual((registro.almacen_origen, registro.almacen_destino), (self.almacen, self.otro))
+        self.assertEqual((registro.cantidad_nueva, registro.cantidad_anterior), (4, 10))
+
+    def test_traspaso_mayor_a_lo_disponible_se_rechaza(self):
+        respuesta = self.traspasar(self.almacen, self.otro, "11")
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(self.existencia(self.otro), 0)
+        self.assertEqual(self.inventario.cantidad, 10)
+        self.assertFalse(Registro_Inventario.objects.exists())
+
+    def test_traspaso_con_datos_invalidos_se_rechaza(self):
+        casos = [(self.almacen, self.almacen, "1"), (self.almacen, self.otro, "0"),
+                 (self.almacen, self.otro, "-1"), (self.almacen, self.otro, "nan"),
+                 (self.almacen, self.otro, "inf"), (self.almacen, self.otro, "2.5")]
+        for origen, destino, cantidad in casos:
+            with self.subTest(destino=destino.nombre, cantidad=cantidad):
+                self.assertEqual(self.traspasar(origen, destino, cantidad).status_code, 200)
+        self.assertFalse(Registro_Inventario.objects.exists())
+        self.assertEqual(self.existencia(self.otro), 0)
+
+    def test_traspaso_desde_sin_asignar(self):
+        Inventario_Producto.objects.filter(pk=self.inventario.pk).update(almacen=None)
+        respuesta = self.traspasar(None, self.otro, "3")
+        self.assertEqual(respuesta.status_code, 302)
+        self.inventario.refresh_from_db()
+        self.assertEqual(self.existencia(self.otro), 3)
+        self.assertEqual(services.sin_asignar(self.inventario), 7)
+        self.assertEqual(self.inventario.cantidad, 10)
+        self.assertIsNone(self.inventario.almacen_id)
+
+    def test_traspaso_de_producto_sin_inventario_se_rechaza(self):
+        self.inventario.delete()
+        self.assertEqual(self.traspasar(self.almacen, self.otro, "1").status_code, 200)
+        self.assertFalse(Registro_Inventario.objects.exists())
+
+    # --- entradas y salidas por almacén
+    def test_salida_por_almacen_respeta_el_desglose(self):
+        self.traspasar(self.almacen, self.otro, "4")
+        rechazada = self.movimiento(cantidad="7", almacen=self.almacen.pk)
+        self.assertEqual(rechazada.status_code, 200)
+        self.assertEqual(self.existencia(self.almacen), 6)
+        aceptada = self.movimiento(cantidad="6", almacen=self.almacen.pk)
+        self.assertEqual(aceptada.status_code, 302)
+        self.assertEqual(self.existencia(self.almacen), 0)
+        self.assertEqual(self.existencia(self.otro), 4)
+        self.assertEqual(self.inventario.cantidad, 4)
+
+    def test_entrada_a_un_almacen_especifico(self):
+        self.movimiento(tipo_movimiento="ENTRADA", cantidad="5", almacen=self.otro.pk)
+        self.assertEqual(self.existencia(self.otro), 5)
+        self.assertEqual(self.existencia(self.almacen), 10)
+        self.assertEqual(self.inventario.cantidad, 15)
+
+    def test_movimiento_sin_almacen_usa_el_predeterminado(self):
+        self.movimiento(cantidad="3")
+        self.assertEqual(self.existencia(self.almacen), 7)
+        registro = Registro_Inventario.objects.get()
+        self.assertEqual(registro.almacen_origen, self.almacen)
+
+    # --- ajuste desde el catálogo
+    def test_ajuste_desde_catalogo_se_refleja_en_el_almacen(self):
+        self.ajustar(cantidad_nueva="13")
+        self.assertEqual(self.existencia(self.almacen), 13)
+        self.assertEqual(self.inventario.cantidad, 13)
+
+    def test_ajuste_a_la_baja_no_puede_exceder_el_almacen(self):
+        services.asegurar_existencias(self.inventario)
+        services.mover(self.inventario, self.almacen, -4)
+        services.mover(self.inventario, self.otro, 4)
+        resultado = self.ajustar(cantidad_nueva="3")
+        self.assertIn("cantidad_nueva", resultado["form"].errors)
+        self.inventario.refresh_from_db()
+        self.assertEqual(self.inventario.cantidad, 10)
+
+    # --- vistas
+    def test_vista_por_almacen_con_datos_anteriores(self):
+        respuesta = self.client.get(reverse("inventory:inventario_por_almacen"))
+        filas = {f["almacen"].pk: f["cantidad"] for f in respuesta.context["inventario"]}
+        self.assertEqual(filas, {self.almacen.pk: 10})
+
+    def test_vista_por_almacen_refleja_el_desglose_y_filtra(self):
+        self.traspasar(self.almacen, self.otro, "4")
+        todas = self.client.get(reverse("inventory:inventario_por_almacen"))
+        self.assertEqual({f["almacen"].pk: f["cantidad"] for f in todas.context["inventario"]},
+                         {self.almacen.pk: 6, self.otro.pk: 4})
+        filtrada = self.client.get(reverse("inventory:inventario_por_almacen"), {"almacen_id": self.otro.pk})
+        self.assertEqual([(f["almacen"].pk, f["cantidad"]) for f in filtrada.context["inventario"]],
+                         [(self.otro.pk, 4)])
+
+    def test_lista_de_almacenes_con_totales(self):
+        self.traspasar(self.almacen, self.otro, "4")
+        respuesta = self.client.get(reverse("inventory:almacenes"))
+        por_nombre = {f["almacen"].nombre: (f["productos"], f["unidades"]) for f in respuesta.context["almacenes"]}
+        self.assertEqual(por_nombre["Principal"], (1, 6))
+        self.assertEqual(por_nombre["Secundario"], (1, 4))
+
+    def test_historial_incluye_traspasos(self):
+        self.traspasar(self.almacen, self.otro, "2")
+        respuesta = self.client.get(reverse("inventory:historial"), {"tipo": "TRASPASO"})
+        self.assertEqual(respuesta.context["page_obj"].paginator.count, 1)
+        self.assertContains(respuesta, "Principal → Secundario")
+
+    # --- administración de almacenes
+    def test_crear_almacen_y_principal_unico_por_negocio(self):
+        datos = {"nombre": "Norte", "direccion": "", "negocio": self.negocio.pk, "es_principal": "on"}
+        self.assertEqual(self.client.post(reverse("inventory:almacen_add"), datos).status_code, 302)
+        datos.update(nombre="Sur")
+        self.client.post(reverse("inventory:almacen_add"), datos)
+        self.assertFalse(Almacen.objects.get(nombre="Norte").es_principal)
+        self.assertTrue(Almacen.objects.get(nombre="Sur").es_principal)
+
+    def test_nombre_de_almacen_repetido_se_rechaza(self):
+        respuesta = self.client.post(reverse("inventory:almacen_add"), {"nombre": "principal", "direccion": ""})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(Almacen.objects.filter(nombre__iexact="principal").count(), 1)
+
+    def test_editar_almacen(self):
+        self.client.post(reverse("inventory:almacen_edit", args=[self.otro.pk]),
+                         {"nombre": "Bodega 2", "direccion": "Calle 1", "negocio": self.negocio.pk})
+        self.otro.refresh_from_db()
+        self.assertEqual((self.otro.nombre, self.otro.direccion), ("Bodega 2", "Calle 1"))
+        self.assertEqual(self.client.get(reverse("inventory:almacen_edit", args=[9999])).status_code, 404)
+
+    # --- servicio
+    def test_asegurar_existencias_es_idempotente(self):
+        services.asegurar_existencias(self.inventario)
+        services.asegurar_existencias(self.inventario)
+        self.assertEqual(self.inventario.existencias.get().cantidad, 10)
+        self.assertEqual(services.sin_asignar(self.inventario), 0)

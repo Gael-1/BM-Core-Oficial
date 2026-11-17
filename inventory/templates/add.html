@@ -24,6 +24,12 @@
       {% if edit %}
       <p class="text-muted small">La cantidad nueva reemplaza la existencia actual. Deja el campo vacío para conservarla. Cada cambio se registra en la bitácora.</p>
       <div class="row g-3"><div class="col-md-6">{{ form.cantidad_actual.label_tag }}{{ form.cantidad_actual }}{{ form.cantidad_actual.errors }}</div><div class="col-md-6">{{ form.cantidad_nueva.label_tag }}{{ form.cantidad_nueva }}<div class="text-danger small">{{ form.cantidad_nueva.errors }}</div></div></div>
+      {% if desglose %}
+      <div class="mt-3"><div class="small text-muted mb-1">Existencia por almacén</div>
+        <ul class="list-unstyled mb-1">{% for almacen, cantidad in desglose %}<li>{{ almacen.nombre|default:"Sin asignar" }}: <strong>{{ cantidad }}</strong></li>{% endfor %}</ul>
+        {% if puede_inventario %}<a href="{% url 'inventory:traspaso' %}?producto={{ producto.pk }}" class="small">Hacer un traspaso</a>{% endif %}
+      </div>
+      {% endif %}
       {% else %}
       <div class="form-check mb-3">{{ form.addCantidad }}{{ form.addCantidad.label_tag }}</div>
       <div class="col-md-6">{{ form.cantidad.label_tag }}{{ form.cantidad }}<div class="text-danger small">{{ form.cantidad.errors }}</div><p class="text-muted small mt-2">Sin inventario inicial, el producto se registra con existencia cero.</p></div>

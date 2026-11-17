@@ -1,7 +1,7 @@
 {% extends "layout.html" %}
 {% block title %}Inventario por almacén{% endblock %}
 {% block body %}
-<div class="container py-3"><h2>Inventario por almacén</h2><p class="text-muted">Consulta la ubicación asignada a cada existencia.</p>
+<div class="container py-3"><h2>Inventario por almacén</h2><div class="d-flex flex-wrap justify-content-between gap-2"><p class="text-muted">Cuánto de cada producto hay en cada almacén.</p><div class="d-flex gap-2 align-self-start"><a href="{% url 'inventory:almacenes' %}" class="btn btn-outline-secondary">Almacenes</a>{% if puede_inventario %}<a href="{% url 'inventory:traspaso' %}" class="btn btn-primary">Nuevo traspaso</a>{% endif %}</div></div>
 <div class="card mb-4"><div class="card-body"><form method="get" class="d-flex flex-wrap gap-3"><label for="almacen-id" class="visually-hidden">Almacén</label><select id="almacen-id" name="almacen_id" class="form-select" style="max-width:420px"><option value="">Todos los almacenes</option>{% for almacen in almacenes %}<option value="{{ almacen.pk }}" {% if almacen.pk|stringformat:'s' == almacen_seleccionado %}selected{% endif %}>{{ almacen.nombre }}</option>{% endfor %}</select><button class="btn btn-primary">Consultar</button></form></div></div>
 {% include "inventory/partials/tabla_inventario.html" %}<a href="{% url 'inventory:productos' %}" class="btn btn-outline-secondary mt-3">Volver al inventario</a></div>
 {% endblock %}

@@ -144,3 +144,28 @@ class InterfazPorRolTests(TestCase):
         url = reverse("compra:autorizar_od", args=[orden.pk])
         self.assertNotIn(url, self.html(self.comprador, "compra:view", args=[orden.pk]))
         self.assertIn(url, self.html(usuario_con_rol("ui_admin", ADMIN), "compra:view", args=[orden.pk]))
+
+
+class RolesAlmacenesTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.consulta = usuario_con_rol("alm_consulta", CONSULTA)
+        cls.almacenista = usuario_con_rol("alm_almacen", ALMACEN)
+        cls.comprador = usuario_con_rol("alm_compras", COMPRAS)
+
+    def estado(self, usuario, nombre):
+        self.client.force_login(usuario)
+        return self.client.get(reverse(nombre)).status_code
+
+    def test_todos_los_roles_consultan_almacenes(self):
+        for usuario in (self.consulta, self.almacenista, self.comprador):
+            with self.subTest(usuario=usuario.username):
+                self.assertEqual(self.estado(usuario, "inventory:almacenes"), 200)
+                self.assertEqual(self.estado(usuario, "inventory:inventario_por_almacen"), 200)
+
+    def test_solo_inventario_hace_traspasos_y_administra_almacenes(self):
+        for nombre in ("inventory:traspaso", "inventory:almacen_add"):
+            with self.subTest(nombre=nombre):
+                self.assertEqual(self.estado(self.almacenista, nombre), 200)
+                self.assertEqual(self.estado(self.consulta, nombre), 403)
+                self.assertEqual(self.estado(self.comprador, nombre), 403)

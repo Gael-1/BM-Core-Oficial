@@ -20,6 +20,7 @@ from inventory.models import (
     Negocio_Inventario,
     Registro_Negocio_Inventario,
 )
+from inventory import services
 from negocio.models import Negocio
 from django.shortcuts import redirect
 from django.contrib import messages
@@ -157,10 +158,12 @@ def completar_orden(request, orden_id):
                     producto_id=producto,
                     defaults={"cantidad": 0, "creado_por": request.user, "modificado_por": request.user},
                 )
+                services.asegurar_existencias(inventario)
                 anterior = inventario.cantidad
                 inventario.cantidad += item.cantidad
                 inventario.modificado_por = request.user
                 inventario.save()
+                services.aplicar(inventario, inventario.almacen, item.cantidad)
                 Registro_Inventario.objects.create(
                     inventario_producto_id=inventario, tipo_movimiento="ENTRADA",
                     cantidad_anterior=anterior, cantidad_nueva=item.cantidad,

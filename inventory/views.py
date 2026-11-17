@@ -3,12 +3,14 @@ import logging
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, FloatField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 
-from .models import Producto, Inventario_Producto, Registro_Inventario, Almacen
-from .forms import MovimientoForm, addProductForm
+from .models import Almacen, Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
+from . import services
+from .forms import AlmacenForm, MovimientoForm, TraspasoForm, addProductForm
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,7 @@ def add(request, pk=None):
                         creado_por=request.user, modificado_por=request.user,
                     )
                     if cantidad > 0:
+                        services.aplicar(inventario, almacen, cantidad)
                         Registro_Inventario.objects.create(
                             inventario_producto_id=inventario, almacen_destino=almacen,
                             cantidad_nueva=cantidad, cantidad_anterior=0,
@@ -79,6 +82,8 @@ def edit(request, pk):
         # El producto funciona también como bloqueo cuando todavía no tiene inventario.
         producto = get_object_or_404(Producto.objects.select_for_update(), pk=pk)
         inventario = Inventario_Producto.objects.filter(producto_id=producto).first()
+        if request.method == "POST" and inventario:
+            services.asegurar_existencias(inventario)
         actual = inventario.cantidad if inventario else 0
         initial = {"cantidad_actual": actual, "almacen": inventario.almacen_id if inventario else None}
         form = addProductForm(
@@ -93,6 +98,13 @@ def edit(request, pk):
                 form.add_error("cantidad_nueva", "El inventario cambió. Recarga la página antes de ajustar la cantidad.")
             if inventario and actual > 0 and (almacen.pk if almacen else None) != inventario.almacen_id:
                 form.add_error("almacen", "No puedes cambiar de almacén con existencias. Se requiere un traspaso.")
+            if (nueva is not None and nueva < actual and inventario
+                    and not services.puede_retirar(inventario, almacen, actual - nueva)):
+                form.add_error(
+                    "cantidad_nueva",
+                    "El almacén seleccionado no tiene tanta existencia. Registra una salida indicando "
+                    "el almacén o haz un traspaso.",
+                )
             medida = form.cleaned_data.get("medida")
             if medida and not medida.permite_decimales and not float(actual).is_integer():
                 form.add_error("medida", "La existencia actual contiene decimales; conserva una unidad compatible.")
@@ -111,6 +123,8 @@ def edit(request, pk):
                 if nueva is not None:
                     inventario.cantidad = nueva
                 inventario.save()
+                if nueva is not None:
+                    services.aplicar(inventario, almacen, nueva - actual)
                 if nueva is not None and nueva != actual:
                     Registro_Inventario.objects.create(
                         inventario_producto_id=inventario,
@@ -124,6 +138,7 @@ def edit(request, pk):
                 return redirect("inventory:productos")
     return render(request, "add.html", {
         "form": form, "edit": True, "producto": producto, "inventario": inventario,
+        "desglose": services.desglose(inventario) if inventario else [],
     })
 
 
@@ -170,22 +185,48 @@ def alertas_reabastecimiento(request):
     return render(request, 'inventory/alertas.html', context)
 
 
+def existencias_por_almacen(almacen_id=None):
+    """Filas {producto, almacen, cantidad} con existencia > 0, desglosadas por almacén.
+
+    Lo que aún no está desglosado se atribuye al almacén predeterminado del producto
+    (o a "Sin asignar" si no tiene).
+    """
+    acumulado = {}
+
+    def sumar(producto, almacen, cantidad):
+        clave = (producto.pk, almacen.pk if almacen else None)
+        fila = acumulado.setdefault(clave, {"producto": producto, "almacen": almacen, "cantidad": 0.0})
+        fila["cantidad"] = round(fila["cantidad"] + cantidad, 4)
+
+    filas = Existencia_Almacen.objects.select_related("inventario__producto_id", "almacen").filter(cantidad__gt=0)
+    if almacen_id:
+        filas = filas.filter(almacen_id=almacen_id)
+    for fila in filas:
+        sumar(fila.inventario.producto_id, fila.almacen, fila.cantidad)
+
+    pendientes = Inventario_Producto.objects.select_related("producto_id", "almacen").annotate(
+        asignado=Coalesce(Sum("existencias__cantidad"), Value(0.0), output_field=FloatField())
+    )
+    if almacen_id:
+        pendientes = pendientes.filter(almacen_id=almacen_id)
+    for inventario in pendientes:
+        resto = round(inventario.cantidad - inventario.asignado, 4)
+        if resto > services.EPS:
+            sumar(inventario.producto_id, inventario.almacen, resto)
+
+    return sorted(acumulado.values(), key=lambda f: (f["almacen"].nombre if f["almacen"] else "", f["producto"].nombre))
+
+
 def inventario_por_almacen(request):
-    """Filtra la lista de existencias según el almacén seleccionado."""
+    """Existencias desglosadas por almacén, con filtro opcional."""
     almacen_id = request.GET.get('almacen_id')
     almacenes = Almacen.objects.all()
-    
-    inventario_qs = Inventario_Producto.objects.select_related(
-        'producto_id', 'almacen', 'negocio'
-    ).all()
 
-    if almacen_id:
-        if not almacen_id.isdigit():
-            return HttpResponse("Selecciona un almacén válido.", status=400)
-        inventario_qs = inventario_qs.filter(almacen_id=almacen_id)
+    if almacen_id and not almacen_id.isdigit():
+        return HttpResponse("Selecciona un almacén válido.", status=400)
 
     context = {
-        'inventario': inventario_qs,
+        'inventario': existencias_por_almacen(int(almacen_id) if almacen_id else None),
         'almacenes': almacenes,
         'almacen_seleccionado': almacen_id
     }
@@ -220,26 +261,37 @@ def registrar_movimiento(request):
             # El bloqueo del producto serializa movimientos simultáneos del mismo artículo.
             producto = Producto.objects.select_for_update().get(pk=form.cleaned_data["producto"].pk)
             inventario = Inventario_Producto.objects.filter(producto_id=producto).first()
+            services.asegurar_existencias(inventario)
+            almacen = form.cleaned_data.get("almacen") or (inventario.almacen if inventario else None)
             anterior = inventario.cantidad if inventario else 0.0
             if tipo == "SALIDA" and cantidad - anterior > 1e-9:
                 form.add_error("cantidad", f"Existencia insuficiente: hay {anterior:g} disponibles.")
+            elif tipo == "SALIDA" and not services.puede_retirar(inventario, almacen, cantidad):
+                disponible = services.existencia_en(inventario, almacen)
+                nombre = almacen.nombre if almacen else "Sin asignar"
+                form.add_error(
+                    "cantidad",
+                    f"Existencia insuficiente en «{nombre}»: hay {disponible:g}. "
+                    "Elige otro almacén o haz un traspaso.",
+                )
             else:
                 if inventario is None:
                     inventario = Inventario_Producto.objects.create(
-                        producto_id=producto, cantidad=0,
+                        producto_id=producto, cantidad=0, almacen=almacen,
                         creado_por=request.user, modificado_por=request.user,
                     )
                 nueva = anterior + cantidad if tipo == "ENTRADA" else anterior - cantidad
                 inventario.cantidad = round(nueva, 4)
                 inventario.modificado_por = request.user
                 inventario.save()
+                services.aplicar(inventario, almacen, cantidad if tipo == "ENTRADA" else -cantidad)
                 Registro_Inventario.objects.create(
                     inventario_producto_id=inventario,
                     tipo_movimiento=tipo,
                     cantidad_anterior=anterior,
                     cantidad_nueva=cantidad,
-                    almacen_destino=inventario.almacen if tipo == "ENTRADA" else None,
-                    almacen_origen=inventario.almacen if tipo == "SALIDA" else None,
+                    almacen_destino=almacen if tipo == "ENTRADA" else None,
+                    almacen_origen=almacen if tipo == "SALIDA" else None,
                     motivo=form.cleaned_data["motivo"],
                     comentarios=form.cleaned_data["comentarios"] or None,
                     creado_por=request.user,
@@ -252,7 +304,8 @@ def registrar_movimiento(request):
 def historial_movimientos(request):
     """Historial paginado de movimientos, filtrable por tipo y producto."""
     movimientos = Registro_Inventario.objects.select_related(
-        "inventario_producto_id__producto_id", "creado_por", "motivo", "orden_compra"
+        "inventario_producto_id__producto_id", "creado_por", "motivo", "orden_compra",
+        "almacen_origen", "almacen_destino",
     ).order_by("-creado", "-pk")
 
     tipo = request.GET.get("tipo", "")
@@ -274,3 +327,81 @@ def historial_movimientos(request):
         "producto_id": producto_id,
         "querystring": parametros.urlencode(),
     })
+
+
+
+# --- ALMACENES Y TRASPASOS ---
+
+def almacenes(request):
+    """Lista de almacenes con productos distintos y unidades que guarda cada uno."""
+    resumen = {}
+    for fila in existencias_por_almacen():
+        clave = fila["almacen"].pk if fila["almacen"] else None
+        datos = resumen.setdefault(clave, {"productos": 0, "unidades": 0.0})
+        datos["productos"] += 1
+        datos["unidades"] = round(datos["unidades"] + fila["cantidad"], 4)
+    lista = [
+        {"almacen": a, **resumen.get(a.pk, {"productos": 0, "unidades": 0})}
+        for a in Almacen.objects.select_related("negocio").order_by("nombre")
+    ]
+    return render(request, "inventory/almacenes.html", {
+        "almacenes": lista,
+        "sin_asignar": resumen.get(None),
+    })
+
+
+def almacen_add_edit(request, pk=None):
+    almacen = get_object_or_404(Almacen, pk=pk) if pk else None
+    form = AlmacenForm(request.POST if request.method == "POST" else None, instance=almacen)
+    if request.method == "POST" and form.is_valid():
+        with transaction.atomic():
+            almacen = form.save()
+            if almacen.es_principal:
+                # Solo un almacén principal por negocio.
+                Almacen.objects.filter(negocio=almacen.negocio, es_principal=True).exclude(pk=almacen.pk).update(
+                    es_principal=False
+                )
+        messages.success(request, "Almacén guardado correctamente.")
+        return redirect("inventory:almacenes")
+    return render(request, "inventory/almacen_form.html", {"form": form, "almacen": almacen})
+
+
+def registrar_traspaso(request):
+    """Mueve existencias entre almacenes sin cambiar el total del producto."""
+    producto_inicial = request.GET.get("producto", "")
+    form = TraspasoForm(
+        request.POST if request.method == "POST" else None,
+        initial={"producto": producto_inicial} if producto_inicial.isdigit() else None,
+    )
+    if request.method == "POST" and form.is_valid():
+        cantidad = form.cleaned_data["cantidad"]
+        origen = form.cleaned_data["almacen_origen"]
+        destino = form.cleaned_data["almacen_destino"]
+        with transaction.atomic():
+            producto = Producto.objects.select_for_update().get(pk=form.cleaned_data["producto"].pk)
+            inventario = Inventario_Producto.objects.filter(producto_id=producto).first()
+            if inventario is None:
+                form.add_error("producto", "Este producto todavía no tiene existencias que traspasar.")
+            else:
+                services.asegurar_existencias(inventario)
+                disponible = services.existencia_en(inventario, origen)
+                if not services.puede_retirar(inventario, origen, cantidad):
+                    nombre = origen.nombre if origen else "Sin asignar"
+                    form.add_error("cantidad", f"Existencia insuficiente en «{nombre}»: hay {disponible:g}.")
+                else:
+                    if origen is not None:
+                        services.mover(inventario, origen, -cantidad)
+                    services.mover(inventario, destino, cantidad)
+                    Registro_Inventario.objects.create(
+                        inventario_producto_id=inventario,
+                        tipo_movimiento="TRASPASO",
+                        cantidad_anterior=inventario.cantidad,
+                        cantidad_nueva=cantidad,
+                        almacen_origen=origen,
+                        almacen_destino=destino,
+                        comentarios=form.cleaned_data["comentarios"] or None,
+                        creado_por=request.user,
+                    )
+                    messages.success(request, "Traspaso registrado correctamente.")
+                    return redirect("inventory:inventario_por_almacen")
+    return render(request, "inventory/traspaso.html", {"form": form})

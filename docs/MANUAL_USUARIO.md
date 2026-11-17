@@ -36,6 +36,16 @@ Las unidades que no permiten decimales (por ejemplo "Pieza") rechazan cantidades
 
 El **historial** muestra fecha, producto, tipo, cantidad, existencia anterior, motivo, origen (manual o número de orden de compra) y usuario. Se filtra por tipo y producto.
 
+## 4 bis. Almacenes y traspasos
+Cada producto tiene una existencia total que se reparte entre uno o más **almacenes**.
+
+- **Almacenes** (`Inventario → Almacenes`): lista con negocio, productos y unidades de cada uno. Desde ahí puedes crear o editar almacenes (Almacenista y Administrador). Solo puede haber **un almacén principal por negocio**.
+- **Existencias por almacén**: cuánto de cada producto hay en cada ubicación; se puede filtrar por almacén. Lo que no está asignado a ninguno aparece como *Sin asignar*.
+- **Traspaso** (`Nuevo traspaso`): elige producto, almacén origen (o *Sin asignar*), destino y cantidad. El total del producto **no cambia**; solo se mueve de lugar. No puedes traspasar más de lo que hay en el origen ni al mismo almacén.
+- En **entradas y salidas** puedes elegir el almacén; si lo dejas vacío se usa el predeterminado del producto. Una salida no puede exceder lo que hay en ese almacén, aunque el total del producto alcance.
+- Al **recibir una compra** la mercancía entra al almacén predeterminado del producto.
+- En el historial, los traspasos aparecen como *Origen → Destino*.
+
 ## 5. Categorías
 `Categorías`: lista, alta y edición. No se repiten nombres (sin importar mayúsculas). Desactivar una categoría no borra sus productos.
 

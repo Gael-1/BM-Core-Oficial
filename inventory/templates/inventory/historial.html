@@ -32,7 +32,7 @@
   </form>
 
   <div class="card"><div class="table-responsive"><table class="table">
-    <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Anterior</th><th>Motivo</th><th>Origen</th><th>Usuario</th></tr></thead>
+    <thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cantidad</th><th>Anterior</th><th>Motivo</th><th>Almacén</th><th>Referencia</th><th>Usuario</th></tr></thead>
     <tbody>
     {% for m in page_obj %}
       <tr>
@@ -42,11 +42,12 @@
         <td>{{ m.cantidad_nueva }}</td>
         <td>{{ m.cantidad_anterior|default_if_none:"—" }}</td>
         <td>{{ m.motivo|default:"—" }}</td>
+        <td>{% if m.almacen_origen and m.almacen_destino %}{{ m.almacen_origen.nombre }} → {{ m.almacen_destino.nombre }}{% elif m.almacen_destino %}→ {{ m.almacen_destino.nombre }}{% elif m.almacen_origen %}{{ m.almacen_origen.nombre }} →{% else %}—{% endif %}</td>
         <td>{% if m.orden_compra %}<a href="{% url 'compra:view' m.orden_compra.pk %}">{{ m.orden_compra.numero_de_orden }}</a>{% else %}Manual{% endif %}</td>
         <td>{{ m.creado_por.username }}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="8" class="text-center py-4">No hay movimientos para los filtros seleccionados.</td></tr>
+      <tr><td colspan="9" class="text-center py-4">No hay movimientos para los filtros seleccionados.</td></tr>
     {% endfor %}
     </tbody>
   </table></div></div>

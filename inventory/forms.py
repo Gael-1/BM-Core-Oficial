@@ -150,6 +150,13 @@ class MovimientoForm(forms.Form):
         label="Cantidad",
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "any", "placeholder": "0"}),
     )
+    almacen = forms.ModelChoiceField(
+        queryset=Almacen.objects.order_by("nombre"),
+        required=False,
+        label="Almacén",
+        empty_label="Almacén predeterminado del producto",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
     motivo = forms.ModelChoiceField(
         queryset=motivo_movimiento.objects.filter(activo=True).order_by("nombre"),
         label="Motivo",
@@ -175,3 +182,74 @@ class MovimientoForm(forms.Form):
                 and not float(cantidad).is_integer():
             self.add_error("cantidad", "Esta unidad de medida solo permite cantidades enteras.")
         return datos
+
+
+class TraspasoForm(forms.Form):
+    """Mueve existencias de un almacén a otro. El total del producto no cambia."""
+
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        label="Producto",
+        empty_label="Selecciona un producto",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    almacen_origen = forms.ModelChoiceField(
+        queryset=Almacen.objects.order_by("nombre"),
+        required=False,
+        label="Almacén origen",
+        empty_label="Sin asignar",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    almacen_destino = forms.ModelChoiceField(
+        queryset=Almacen.objects.order_by("nombre"),
+        label="Almacén destino",
+        empty_label="Selecciona el destino",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    cantidad = forms.FloatField(
+        label="Cantidad",
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "any", "placeholder": "0"}),
+    )
+    comentarios = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Comentarios",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )
+
+    def clean(self):
+        datos = super().clean()
+        origen = datos.get("almacen_origen")
+        destino = datos.get("almacen_destino")
+        cantidad = datos.get("cantidad")
+        producto = datos.get("producto")
+        if destino and origen and origen.pk == destino.pk:
+            self.add_error("almacen_destino", "El destino debe ser distinto del origen.")
+        if cantidad is not None:
+            if not math.isfinite(cantidad) or cantidad <= 0:
+                self.add_error("cantidad", "Ingresa una cantidad finita mayor a cero.")
+            elif producto and producto.medida and not producto.medida.permite_decimales \
+                    and not float(cantidad).is_integer():
+                self.add_error("cantidad", "Esta unidad de medida solo permite cantidades enteras.")
+        return datos
+
+
+class AlmacenForm(forms.ModelForm):
+    class Meta:
+        model = Almacen
+        fields = ["nombre", "direccion", "negocio", "es_principal"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del almacén"}),
+            "direccion": forms.TextInput(attrs={"class": "form-control", "placeholder": "Dirección"}),
+            "negocio": forms.Select(attrs={"class": "form-select"}),
+            "es_principal": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+        repetidos = Almacen.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            repetidos = repetidos.exclude(pk=self.instance.pk)
+        if repetidos.exists():
+            raise forms.ValidationError("Ya existe un almacén con ese nombre.")
+        return nombre

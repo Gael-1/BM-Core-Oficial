@@ -212,3 +212,25 @@ class CorreccionesCompraTests(TestCase):
             with self.subTest(cuerpo=cuerpo):
                 respuesta = self.client.post(url, data=cuerpo, content_type="application/json")
                 self.assertIn(respuesta.status_code, (400, 404))
+
+
+class RecepcionPorAlmacenTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        for nombre, valor in crear_datos().items():
+            setattr(cls, nombre, valor)
+
+    def test_recepcion_suma_al_almacen_predeterminado(self):
+        from inventory import services
+
+        orden = OrdenDeCompra.objects.create(
+            numero_de_orden="OC-ALM", proveedor=self.proveedor, negocio=self.negocio, subtotal="37.50",
+            total="37.50", estatus=EstatusChoices.AUTORIZADA, usuario_creo=self.usuario)
+        ProductoEnOrden.objects.create(orden=orden, producto=self.producto, cantidad=3,
+                                       precio_unitario="12.50", subtotal="37.50")
+        self.client.force_login(self.usuario)
+        self.client.post(reverse("compra:completar_orden", args=[orden.pk]))
+        self.inventario.refresh_from_db()
+        self.assertEqual(self.inventario.cantidad, 13)
+        self.assertEqual(services.existencia_en(self.inventario, self.almacen), 13)
+        self.assertEqual(services.sin_asignar(self.inventario), 0)

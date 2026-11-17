@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+{% block title %}Almacenes{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex flex-wrap justify-content-between gap-3 mb-4">
+    <div><h2>Almacenes</h2><p class="text-muted">Ubicaciones donde se guarda el inventario.</p></div>
+    <div class="d-flex gap-2 align-self-start">
+      <a href="{% url 'inventory:inventario_por_almacen' %}" class="btn btn-outline-secondary">Ver existencias</a>
+      {% if puede_inventario %}
+      <a href="{% url 'inventory:traspaso' %}" class="btn btn-outline-primary">Nuevo traspaso</a>
+      <a href="{% url 'inventory:almacen_add' %}" class="btn btn-primary">Nuevo almacén</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table">
+    <thead><tr><th>Nombre</th><th>Negocio / sucursal</th><th>Dirección</th><th>Principal</th><th>Productos</th><th>Unidades</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for fila in almacenes %}
+      <tr>
+        <td>{{ fila.almacen.nombre }}</td>
+        <td>{{ fila.almacen.negocio.nombre|default:"General" }}</td>
+        <td>{{ fila.almacen.direccion|default:"—" }}</td>
+        <td>{% if fila.almacen.es_principal %}Sí{% else %}—{% endif %}</td>
+        <td>{{ fila.productos }}</td>
+        <td>{{ fila.unidades }}</td>
+        <td>
+          <a href="{% url 'inventory:inventario_por_almacen' %}?almacen_id={{ fila.almacen.pk }}" class="btn btn-outline-secondary btn-sm">Existencias</a>
+          {% if puede_inventario %}<a href="{% url 'inventory:almacen_edit' fila.almacen.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>{% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="7" class="text-center py-4">Aún no hay almacenes.</td></tr>
+    {% endfor %}
+    {% if sin_asignar %}
+      <tr class="table-light"><td colspan="4"><em>Sin asignar a ningún almacén</em></td><td>{{ sin_asignar.productos }}</td><td>{{ sin_asignar.unidades }}</td><td></td></tr>
+    {% endif %}
+    </tbody>
+  </table></div></div>
+</div>
+{% endblock %}

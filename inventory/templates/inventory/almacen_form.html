@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block title %}{% if almacen %}Editar{% else %}Nuevo{% endif %} almacén{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 640px;">
+  <h2 class="mb-4">{% if almacen %}Editar almacén{% else %}Nuevo almacén{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+    {% if field.name == "es_principal" %}
+    <div class="form-check mb-3">{{ field }}<label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      <div class="form-text">Solo puede haber un almacén principal por negocio; al marcar este se desmarca el anterior.</div></div>
+    {% else %}
+    <div class="mb-3">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {{ field }}
+      {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'inventory:almacenes' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
