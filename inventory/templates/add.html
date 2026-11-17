@@ -15,7 +15,7 @@
         {% for field in form %}
           {% if field.name != 'cantidad' and field.name != 'cantidad_actual' and field.name != 'cantidad_nueva' and field.name != 'addCantidad' %}
           <div class="{% if field.name == 'descripcion' %}col-12{% else %}col-md-6{% endif %}">
-            {{ field.label_tag }}{{ field }}<div class="text-danger small">{{ field.errors }}</div>
+            {{ field.label_tag }}{{ field }}{% if field.name == 'medida' and puede_inventario %}<div class="form-text">¿No está la unidad? <a href="{% url 'inventory:medida_add' %}" target="_blank" rel="noopener">Crear unidad de medida</a> y recarga esta página.</div>{% endif %}<div class="text-danger small">{{ field.errors }}</div>
           </div>
           {% endif %}
         {% endfor %}

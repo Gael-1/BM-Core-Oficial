@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Unidades de medida{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div><h2>Unidades de medida</h2><p class="text-muted">Se eligen al dar de alta un producto.</p></div>
+    {% if puede_inventario %}<a href="{% url 'inventory:medida_add' %}" class="btn btn-primary">Nueva unidad</a>{% endif %}
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table">
+    <thead><tr><th>Nombre</th><th>Abreviatura</th><th>Decimales</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for m in medidas %}
+      <tr><td>{{ m.nombre }}</td><td>{{ m.abreviatura|default:"—" }}</td><td>{% if m.permite_decimales %}Sí{% else %}No{% endif %}</td>
+      <td>{% if puede_inventario %}<a href="{% url 'inventory:medida_edit' m.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>{% endif %}</td></tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-center py-4">Aún no hay unidades de medida.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+</div>
+{% endblock %}

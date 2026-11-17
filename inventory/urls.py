@@ -30,5 +30,10 @@ urlpatterns = [
     path("almacenes/", lectura(views.almacenes), name="almacenes"),
     path("almacenes/nuevo/", gestion_inventario(views.almacen_add_edit), name="almacen_add"),
     path("almacenes/<int:pk>/editar/", gestion_inventario(views.almacen_add_edit), name="almacen_edit"),
+    # Unidades de medida
+    path("medidas/", lectura(views.medidas), name="medidas"),
+    path("medidas/nueva/", gestion_inventario(views.medida_add_edit), name="medida_add"),
+    path("medidas/<int:pk>/editar/", gestion_inventario(views.medida_add_edit), name="medida_edit"),
+
     path("traspasos/nuevo/", gestion_inventario(views.registrar_traspaso), name="traspaso"),
 ]

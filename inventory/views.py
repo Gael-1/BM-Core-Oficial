@@ -8,9 +8,9 @@ from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 
-from .models import Almacen, Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
+from .models import Almacen, Medidas_Inventario, Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
 from . import services
-from .forms import AlmacenForm, MovimientoForm, TraspasoForm, addProductForm
+from .forms import AlmacenForm, MedidaForm, MovimientoForm, TraspasoForm, addProductForm
 
 logger = logging.getLogger(__name__)
 
@@ -405,3 +405,18 @@ def registrar_traspaso(request):
                     messages.success(request, "Traspaso registrado correctamente.")
                     return redirect("inventory:inventario_por_almacen")
     return render(request, "inventory/traspaso.html", {"form": form})
+
+
+def medidas(request):
+    return render(request, "inventory/medidas.html",
+                  {"medidas": Medidas_Inventario.objects.order_by("nombre")})
+
+
+def medida_add_edit(request, pk=None):
+    medida = get_object_or_404(Medidas_Inventario, pk=pk) if pk else None
+    form = MedidaForm(request.POST if request.method == "POST" else None, instance=medida)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Unidad de medida guardada correctamente.")
+        return redirect("inventory:medidas")
+    return render(request, "inventory/medida_form.html", {"form": form, "medida": medida})

@@ -49,6 +49,9 @@ Cada producto tiene una existencia total que se reparte entre uno o más **almac
 ## 5. Categorías
 `Categorías`: lista, alta y edición. No se repiten nombres (sin importar mayúsculas). Desactivar una categoría no borra sus productos.
 
+### Unidades de medida
+`Unidades` (menú superior o enlace en el formulario de producto): lista, alta y edición. Vienen precargadas Pieza, Caja, Paquete, Kilogramo, Gramo, Litro, Mililitro y Metro. Ejemplo para agregar: Nombre `Docena`, Abreviatura `dz`, sin decimales.
+
 ## 6. Proveedores
 - **Añadir proveedor**: nombre, razón social, RFC, régimen fiscal, dirección, código postal, archivos (carátula y opinión de cumplimiento) y uno o más contactos.
 - **Asignar productos** (ícono ±): define qué productos surte y a qué precio. Solo esos productos pueden incluirse en sus órdenes.

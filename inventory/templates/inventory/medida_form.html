@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block title %}{% if medida %}Editar{% else %}Nueva{% endif %} unidad de medida{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 560px;">
+  <h2 class="mb-4">{% if medida %}Editar unidad de medida{% else %}Nueva unidad de medida{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="mb-3"><label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>{{ form.nombre }}
+      {% for e in form.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+    <div class="mb-3"><label for="{{ form.abreviatura.id_for_label }}" class="form-label">Abreviatura</label>{{ form.abreviatura }}
+      {% for e in form.abreviatura.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+    <div class="form-check mb-4">{{ form.permite_decimales }}<label class="form-check-label" for="{{ form.permite_decimales.id_for_label }}">Permite cantidades con decimales (kg, litros…)</label></div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'inventory:medidas' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

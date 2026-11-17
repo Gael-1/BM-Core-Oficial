@@ -1,7 +1,7 @@
 import math
 
 from django import forms
-from .models import Categoria, Producto, Almacen, motivo_movimiento
+from .models import Medidas_Inventario, Categoria, Producto, Almacen, motivo_movimiento
 from django.forms.widgets import ClearableFileInput
 
 
@@ -294,4 +294,24 @@ class AlmacenForm(forms.ModelForm):
             repetidos = repetidos.exclude(pk=self.instance.pk)
         if repetidos.exists():
             raise forms.ValidationError("Ya existe un almacén con ese nombre.")
+        return nombre
+
+
+class MedidaForm(forms.ModelForm):
+    class Meta:
+        model = Medidas_Inventario
+        fields = ["nombre", "abreviatura", "permite_decimales"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej. Kilogramo"}),
+            "abreviatura": forms.TextInput(attrs={"class": "form-control", "placeholder": "Ej. kg"}),
+            "permite_decimales": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data["nombre"].strip()
+        repetidas = Medidas_Inventario.objects.filter(nombre__iexact=nombre)
+        if self.instance.pk:
+            repetidas = repetidas.exclude(pk=self.instance.pk)
+        if repetidas.exists():
+            raise forms.ValidationError("Ya existe una unidad de medida con ese nombre.")
         return nombre

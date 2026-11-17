@@ -462,3 +462,34 @@ class CategoriaEnProductoTests(TestCase):
         respuesta = self.crear(nueva_categoria="Fantasma", precio="")
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(Categoria.objects.count(), total)
+
+
+class MedidasCrudTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.usuario = get_user_model().objects.create_superuser(username="med", password="test-only")
+
+    def setUp(self):
+        self.client.force_login(self.usuario)
+
+    def test_listado_incluye_las_unidades_iniciales(self):
+        respuesta = self.client.get(reverse("inventory:medidas"))
+        self.assertContains(respuesta, "Kilogramo")
+
+    def test_crear_y_editar(self):
+        self.client.post(reverse("inventory:medida_add"), {"nombre": "Docena", "abreviatura": "dz"})
+        medida = Medidas_Inventario.objects.get(nombre="Docena")
+        self.client.post(reverse("inventory:medida_edit", args=[medida.pk]),
+                         {"nombre": "Docena", "abreviatura": "doc", "permite_decimales": "on"})
+        medida.refresh_from_db()
+        self.assertEqual(medida.abreviatura, "doc")
+        self.assertTrue(medida.permite_decimales)
+
+    def test_nombre_repetido_se_rechaza(self):
+        respuesta = self.client.post(reverse("inventory:medida_add"), {"nombre": "kilogramo"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("nombre", respuesta.context["form"].errors)
+
+    def test_formulario_de_producto_ofrece_las_unidades(self):
+        respuesta = self.client.get(reverse("inventory:add"))
+        self.assertContains(respuesta, "Litro")
