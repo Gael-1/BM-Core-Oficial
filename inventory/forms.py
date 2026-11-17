@@ -238,12 +238,18 @@ class AlmacenForm(forms.ModelForm):
     class Meta:
         model = Almacen
         fields = ["nombre", "direccion", "negocio", "es_principal"]
+        labels = {"negocio": "Negocio / sucursal (opcional)"}
         widgets = {
             "nombre": forms.TextInput(attrs={"class": "form-control", "placeholder": "Nombre del almacén"}),
             "direccion": forms.TextInput(attrs={"class": "form-control", "placeholder": "Dirección"}),
             "negocio": forms.Select(attrs={"class": "form-select"}),
             "es_principal": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["negocio"].required = False
+        self.fields["negocio"].empty_label = "General (sin negocio)"
 
     def clean_nombre(self):
         nombre = self.cleaned_data["nombre"].strip()

@@ -15,7 +15,7 @@ from inventory import services, views
 
 def crear_datos():
     usuario = get_user_model().objects.create_superuser(username="operador", password="test-only")
-    regimen = RegimenFiscal.objects.create(codigo=601, descripcion="General")
+    regimen, _ = RegimenFiscal.objects.get_or_create(codigo=601, defaults={"descripcion": "General"})
     negocio = Negocio.objects.create(nombre="Sucursal", nombre_fiscal="Sucursal", direccion="Centro",
                                      rfc="ABC010101AA1", codigo_postal="64000", regimen_fiscal=regimen)
     proveedor = Proveedor.objects.create(nombre="Proveedor", razon_social="Proveedor", rfc="DEF010101AA1",
@@ -402,3 +402,12 @@ class AlmacenesTests(TestCase):
         services.asegurar_existencias(self.inventario)
         self.assertEqual(self.inventario.existencias.get().cantidad, 10)
         self.assertEqual(services.sin_asignar(self.inventario), 0)
+
+
+class AlmacenSinNegocioTests(TestCase):
+    def test_se_puede_crear_un_almacen_sin_negocio(self):
+        usuario = get_user_model().objects.create_superuser(username="sinneg", password="test-only")
+        self.client.force_login(usuario)
+        respuesta = self.client.post(reverse("inventory:almacen_add"), {"nombre": "Bodega general", "direccion": ""})
+        self.assertEqual(respuesta.status_code, 302)
+        self.assertIsNone(Almacen.objects.get(nombre="Bodega general").negocio)
