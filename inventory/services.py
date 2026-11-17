@@ -87,3 +87,36 @@ def desglose(inventario):
     if resto > EPS:
         filas.append((inventario.almacen, resto))
     return filas
+
+
+def inventario_de_negocio(negocio):
+    """Existencias reales de un negocio: suma lo que hay en sus almacenes.
+
+    Devuelve una lista de dicts {producto, cantidad, almacenes: [(almacen, cantidad)]},
+    ordenada por nombre de producto. Incluye traspasos, salidas y ajustes, a diferencia del
+    historial de compras de Negocio_Inventario.
+    """
+    from .models import Inventario_Producto
+
+    por_producto = {}
+    inventarios = Inventario_Producto.objects.select_related("producto_id", "almacen").prefetch_related(
+        "existencias__almacen"
+    )
+    for inventario in inventarios:
+        filas = [
+            (fila.almacen, fila.cantidad)
+            for fila in inventario.existencias.all()
+            if fila.cantidad > 0
+        ]
+        resto = sin_asignar(inventario)
+        if resto > EPS:
+            filas.append((inventario.almacen, resto))
+        filas = [(a, c) for a, c in filas if a is not None and a.negocio_id == negocio.pk]
+        if not filas:
+            continue
+        por_producto[inventario.producto_id_id] = {
+            "producto": inventario.producto_id,
+            "cantidad": round(sum(c for _, c in filas), 4),
+            "almacenes": filas,
+        }
+    return sorted(por_producto.values(), key=lambda f: f["producto"].nombre.lower())

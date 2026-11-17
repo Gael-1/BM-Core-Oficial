@@ -3,7 +3,7 @@ from .forms import addNegocioForm, ContactoNegocioFormSet
 from django.db import transaction
 from django.contrib import messages
 from .models import Negocio
-from inventory.models import Negocio_Inventario
+from inventory import services
 
 # Create your views here.
 
@@ -85,15 +85,8 @@ def index(request):
 
 def view_inventario(request, pk):
     negocio = get_object_or_404(Negocio, pk=pk)
-    inventario = Negocio_Inventario.objects.filter(negocio=negocio).select_related(
-        "producto"
-    )
-
     return render(
         request,
         "negocio/view_inventario.html",
-        {
-            "negocio": negocio,
-            "inventario": inventario,
-        },
+        {"negocio": negocio, "inventario": services.inventario_de_negocio(negocio)},
     )

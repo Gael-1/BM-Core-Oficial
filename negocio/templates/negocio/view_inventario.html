@@ -1,35 +1,33 @@
 {% extends "layout.html" %}
-{% load static %}
-{% block title %}
-  Lista de Invetario por Negocio
-{% endblock title %}
+{% block title %}Inventario de {{ negocio.nombre }}{% endblock title %}
 {% block body %}
   <div class="container">
-    <h2 class="mb-4">Inventario del Negocio: {{ negocio.nombre }}</h2>
+    <h2 class="mb-1">Inventario del negocio: {{ negocio.nombre }}</h2>
+    <p class="text-muted">Suma de las existencias de los almacenes de este negocio (incluye traspasos y salidas).</p>
     <table class="table table-striped">
       <thead>
         <tr>
-          <th scope="col">ID</th>
-          <th scope="col">Nombre del Producto</th>
+          <th scope="col">SKU</th>
+          <th scope="col">Producto</th>
           <th scope="col">Cantidad</th>
+          <th scope="col">Almacenes</th>
           <th scope="col">Precio</th>
         </tr>
       </thead>
       <tbody>
-        {% for item in inventario %}
+        {% for fila in inventario %}
           <tr>
-            <th scope="row">{{ item.id }}</th>
-            <td>{{ item.producto.nombre }}</td>
-            <td>{{ item.cantidad }}</td>
-            <td>{{ item.producto.precio }}</td>
+            <th scope="row">{{ fila.producto.sku }}</th>
+            <td>{{ fila.producto.nombre }}</td>
+            <td>{{ fila.cantidad }}</td>
+            <td>{% for almacen, cantidad in fila.almacenes %}{{ almacen.nombre }}: {{ cantidad }}{% if not forloop.last %}, {% endif %}{% endfor %}</td>
+            <td>{{ fila.producto.precio }}</td>
           </tr>
         {% empty %}
-          <tr>
-            <td colspan="4" class="text-center">No hay productos en el inventario.</td>
-          </tr>
+          <tr><td colspan="5" class="text-center">No hay productos en los almacenes de este negocio.</td></tr>
         {% endfor %}
       </tbody>
     </table>
-    <a href="{% url 'negocio:index' %}" class="btn btn-primary mt-3">Volver a la Lista de Negocios</a>
+    <a href="{% url 'negocio:index' %}" class="btn btn-primary mt-3">Volver a la lista de negocios</a>
   </div>
 {% endblock body %}

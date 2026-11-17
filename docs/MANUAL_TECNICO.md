@@ -78,3 +78,8 @@ En `/admin/` → Usuarios → editar usuario → **Grupos**. Un usuario sin grup
 - `Negocio_Inventario` (existencia por negocio, actualizada al recibir compras) sigue siendo una fuente aparte del desglose por almacén; podría derivarse de `Existencia_Almacen` agrupando por el negocio de cada almacén.
 - El almacén predeterminado es único por producto; no hay ubicación predeterminada por negocio.
 - La presentación del proyecto menciona React; la implementación usa templates de Django + HTMX.
+
+## Datos de ejemplo y existencias por negocio
+
+- `python manage.py seed_demo` crea (de forma idempotente) un negocio, dos almacenes, un proveedor, cinco productos y los usuarios `demo_admin`, `demo_almacen`, `demo_compras` y `demo_consulta`. La contraseña se genera al azar y se muestra una sola vez. Con `DEBUG=False` exige `--force`.
+- La pantalla de inventario de un negocio ya no lee `Negocio_Inventario` (solo acumulaba compras): suma las existencias de los almacenes del negocio con `inventory.services.inventario_de_negocio`, por lo que refleja traspasos y salidas. `Negocio_Inventario` queda como historial de recepciones.
