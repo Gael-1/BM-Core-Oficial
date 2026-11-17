@@ -1,0 +1,35 @@
+# Despliegue de prueba / servidor propio: docker compose up -d --build
+# Antes: cp .env.example .env y ajusta SECRET_KEY, DEBUG=False y la contraseña de la BD.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: bmcore
+      POSTGRES_USER: bmcore
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD en .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bmcore"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://bmcore:${POSTGRES_PASSWORD}@db:5432/bmcore
+      SERVE_MEDIA: "True"
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - media:/app/media
+
+volumes:
+  pgdata:
+  media:

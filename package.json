@@ -1,0 +1,23 @@
+{
+  "name": "bm-core",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "sass:watch": "sass --load-path=node_modules static/css/app.scss static/css/app.css --watch",
+    "sass:build": "sass --load-path=node_modules static/css/app.scss static/css/app.css --style=compressed"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.0.0",
+    "bootstrap": "^5.3.8",
+    "frappe-datatable": "^1.19.0",
+    "simple-datatables": "^10.2.0"
+  },
+  "devDependencies": {
+    "sass": "^1.91.0"
+  }
+}

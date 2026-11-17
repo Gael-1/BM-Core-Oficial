@@ -1,0 +1,260 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard{% endblock title %}
+
+{% block body %}
+<div class="dashboard">
+
+    <!-- Encabezado -->
+    <header class="dashboard-header">
+        <div>
+            <span class="dashboard-eyebrow">CENTRO DE CONTROL</span>
+            <h2>Pagina Principal</h2>
+            <p>Resumen general de la operación de BM-Core</p>
+        </div>
+
+        {% if puede_inventario %}<a href="{% url 'inventory:add' %}" class="btn btn-primary dashboard-main-action">
+            <i class="fa-solid fa-plus"></i>
+            Nuevo producto
+        </a>{% endif %}
+    </header>
+
+    <!-- Métricas -->
+    <section class="dashboard-stats">
+
+        <article class="dashboard-stat-card">
+            <div class="stat-icon stat-icon-primary">
+                <i class="fa-solid fa-box"></i>
+            </div>
+
+            <div class="stat-content">
+                <span>Productos activos</span>
+                <strong>{{ total_productos }}</strong>
+                <small>Productos registrados</small>
+            </div>
+        </article>
+
+        <article class="dashboard-stat-card">
+            <div class="stat-icon stat-icon-info">
+                <i class="fa-solid fa-truck-field"></i>
+            </div>
+
+            <div class="stat-content">
+                <span>Proveedores</span>
+                <strong>{{ total_proveedores }}</strong>
+                <small>Proveedores activos</small>
+            </div>
+        </article>
+
+        <article class="dashboard-stat-card">
+            <div class="stat-icon stat-icon-success">
+                <i class="fa-solid fa-warehouse"></i>
+            </div>
+
+            <div class="stat-content">
+                <span>Almacenes</span>
+                <strong>{{ total_almacenes }}</strong>
+                <small>Almacenes registrados</small>
+            </div>
+        </article>
+
+        <article class="dashboard-stat-card dashboard-stat-alert">
+            <div class="stat-icon stat-icon-warning">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+
+            <div class="stat-content">
+                <span>Alertas</span>
+                <strong>{{ total_alertas }}</strong>
+                <small>Productos con stock bajo</small>
+            </div>
+        </article>
+
+    </section>
+
+    <!-- Contenido principal -->
+    <section class="dashboard-grid">
+
+        <!-- Movimientos -->
+        <article class="dashboard-panel dashboard-panel-large">
+
+            <div class="panel-header">
+                <div>
+                    <h3>Movimientos recientes</h3>
+                    <p>Últimas operaciones registradas en inventario.</p>
+                </div>
+
+                <a href="{% url 'inventory:productos' %}" class="panel-link">
+                    Ver inventario
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="movement-list">
+
+                {% for mov in ultimos_movimientos %}
+
+                <div class="movement-item">
+
+                    <div class="movement-icon
+                        {% if mov.tipo_movimiento == 'ENTRADA' %}
+                            movement-entry
+                        {% else %}
+                            movement-exit
+                        {% endif %}
+                    ">
+                        {% if mov.tipo_movimiento == 'ENTRADA' %}
+                            <i class="fa-solid fa-arrow-down"></i>
+                        {% else %}
+                            <i class="fa-solid fa-arrow-up"></i>
+                        {% endif %}
+                    </div>
+
+                    <div class="movement-info">
+                        <strong>
+                            {{ mov.inventario_producto_id.producto_id.nombre }}
+                        </strong>
+
+                        <span>
+                            {{ mov.get_tipo_movimiento_display }}
+                            · {{ mov.creado|date:"d/m/Y H:i" }}
+                        </span>
+                    </div>
+
+                    <div class="movement-quantity">
+                        {{ mov.cantidad_nueva }}
+                    </div>
+
+                </div>
+
+                {% empty %}
+
+                <div class="dashboard-empty">
+                    <i class="fa-solid fa-box-open"></i>
+                    <p>No hay movimientos registrados.</p>
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </article>
+
+
+        <!-- Alertas -->
+        <article class="dashboard-panel">
+
+            <div class="panel-header">
+                <div>
+                    <h3>Stock bajo</h3>
+                    <p>Productos que requieren atención.</p>
+                </div>
+
+                <a href="{% url 'inventory:alertas' %}" class="panel-link">
+                    Ver
+                </a>
+            </div>
+
+            <div class="stock-alert-list">
+
+                {% for producto in productos_bajo_stock %}
+
+                <div class="stock-alert-item">
+
+                    <div class="stock-product-icon">
+                        <i class="fa-solid fa-box"></i>
+                    </div>
+
+                    <div class="stock-product-info">
+                        <strong>{{ producto.nombre }}</strong>
+                        <span>Stock mínimo: {{ producto.stock_min }}</span>
+                    </div>
+
+                    <div class="stock-current">
+                        <strong>{{ producto.stock_actual }}</strong>
+                        <span>actual</span>
+                    </div>
+
+                </div>
+
+                {% empty %}
+
+                <div class="dashboard-empty dashboard-empty-success">
+                    <i class="fa-solid fa-circle-check"></i>
+                    <p>Todo está en orden.</p>
+                    <span>No hay productos con stock bajo.</span>
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </article>
+
+    </section>
+
+
+    <!-- Acciones rápidas -->
+    <section class="quick-actions">
+
+        <div class="section-heading">
+            <div>
+                <span class="dashboard-eyebrow">ACCESOS RÁPIDOS</span>
+                <h3>¿Qué necesitas hacer?</h3>
+            </div>
+        </div>
+
+        <div class="quick-action-grid">
+
+            {% if puede_inventario %}
+            <a href="{% url 'inventory:add' %}" class="quick-action">
+                <div class="quick-action-icon">
+                    <i class="fa-solid fa-box"></i>
+                </div>
+                <div>
+                    <strong>Nuevo producto</strong>
+                    <span>Registrar un producto</span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+            {% endif %}
+
+            <a href="{% url 'inventory:productos' %}" class="quick-action">
+                <div class="quick-action-icon">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <div>
+                    <strong>Inventario</strong>
+                    <span>Consultar existencias</span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a href="{% url 'inventory:buscar_codigo' %}" class="quick-action">
+                <div class="quick-action-icon">
+                    <i class="fa-solid fa-barcode"></i>
+                </div>
+                <div>
+                    <strong>Buscar producto</strong>
+                    <span>Consultar por código</span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+            <a href="{% url 'inventory:alertas' %}" class="quick-action">
+                <div class="quick-action-icon quick-action-warning">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <strong>Alertas</strong>
+                    <span>Revisar stock bajo</span>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+        </div>
+
+    </section>
+
+</div>
+{% endblock body %}

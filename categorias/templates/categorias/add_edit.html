@@ -1,0 +1,18 @@
+{% extends "layout.html" %}
+{% block title %}{% if categoria %}Editar{% else %}Nueva{% endif %} categoría{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 560px;">
+  <h2 class="mb-4">{% if categoria %}Editar categoría{% else %}Nueva categoría{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="mb-3">
+      <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre</label>
+      {{ form.nombre }}
+      {% for error in form.nombre.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="form-check mb-4">{{ form.activo }}<label class="form-check-label" for="{{ form.activo.id_for_label }}">Activa</label></div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'categorias:index' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

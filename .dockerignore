@@ -1,0 +1,9 @@
+.git
+.env
+db.sqlite3
+__pycache__/
+*.pyc
+node_modules/
+bm_core-env/
+.venv/
+staticfiles/

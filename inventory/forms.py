@@ -1,0 +1,177 @@
+import math
+
+from django import forms
+from .models import Categoria, Producto, Almacen, motivo_movimiento
+from django.forms.widgets import ClearableFileInput
+
+
+class CustomClearableFileInput(ClearableFileInput):
+    template_name = "widgets/custom_clearable_file_input.html"
+
+
+class addProductForm(forms.ModelForm):
+    # Campo para escaneo por Lector / QR
+    codigo_barras = forms.CharField(
+        required=False,
+        label="Código de Barras / QR",
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Escanea o ingresa el código",
+                "autocomplete": "off",
+                "autofocus": "autofocus",
+            }
+        ),
+    )
+
+    # Selección de Almacén para trazabilidad
+    almacen = forms.ModelChoiceField(
+        queryset=Almacen.objects.all(),
+        required=False,
+        label="Almacén / Ubicación",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    addCantidad = forms.BooleanField(
+        required=False,
+        label="¿Quieres añadir cantidad?",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+    cantidad = forms.FloatField(
+        required=False,
+        label="Cantidad inicial",
+        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "0"}),
+    )
+    cantidad_actual = forms.FloatField(
+        required=False,
+        label="Cantidad actual",
+        widget=forms.NumberInput(
+            attrs={"class": "form-control", "placeholder": "0", "readonly": "readonly"}
+        ),
+    )
+    cantidad_nueva = forms.FloatField(
+        required=False,
+        label="Cantidad nueva",
+        widget=forms.NumberInput(attrs={"class": "form-control", "placeholder": "0"}),
+    )
+
+    class Meta:
+        model = Producto
+        fields = [
+            "sku",
+            "codigo_barras",
+            "nombre",
+            "categoria_id",
+            "descripcion",
+            "precio",
+            "stock_min",
+            "imagen",
+            "medida",
+        ]
+        widgets = {
+            "sku": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Código SKU",
+                    "autocomplete": "off",
+                }
+            ),
+            "nombre": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "Nombre del producto"}
+            ),
+            "categoria_id": forms.Select(attrs={"class": "form-select"}),
+            "descripcion": forms.Textarea(
+                attrs={"class": "form-control", "rows": 3, "placeholder": "Descripción"}
+            ),
+            "precio": forms.NumberInput(
+                attrs={"class": "form-control", "step": "0.01", "placeholder": "0.00"}
+            ),
+            "stock_min": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "0"}
+            ),
+            "imagen": CustomClearableFileInput(attrs={"class": "form-control"}),
+            "medida": forms.Select(attrs={"class": "form-select"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["categoria_id"].empty_label = "Selecciona una categoría"
+        self.fields["medida"].empty_label = "Selecciona una medida"
+        self.fields["almacen"].empty_label = "Selecciona un almacén"
+
+    def clean_codigo_barras(self):
+        codigo = self.cleaned_data.get("codigo_barras")
+        if codigo:
+            codigo = codigo.strip()
+            qs = Producto.objects.filter(codigo_barras=codigo)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError(
+                    "Este código de barras ya pertenece a otro producto registrado."
+                )
+        return codigo or None
+
+    def clean(self):
+        datos = super().clean()
+        medida = datos.get("medida")
+        for campo in ("cantidad", "cantidad_nueva", "stock_min"):
+            valor = datos.get(campo)
+            if valor is None:
+                continue
+            if not math.isfinite(valor) or valor < 0:
+                self.add_error(campo, "Ingresa una cantidad finita mayor o igual a cero.")
+            elif medida and not medida.permite_decimales and not float(valor).is_integer():
+                self.add_error(campo, "Esta unidad de medida solo permite cantidades enteras.")
+        if not self.instance.pk and datos.get("addCantidad") and datos.get("cantidad") is None:
+            self.add_error("cantidad", "Ingresa la cantidad inicial.")
+        if self.instance.pk and datos.get("cantidad_nueva") is not None and datos.get("cantidad_actual") is None:
+            self.add_error("cantidad_actual", "Recarga la página para consultar la existencia actual.")
+        return datos
+
+
+class MovimientoForm(forms.Form):
+    """Registro manual de una entrada o salida de existencias."""
+
+    TIPOS = (("ENTRADA", "Entrada"), ("SALIDA", "Salida"))
+
+    producto = forms.ModelChoiceField(
+        queryset=Producto.objects.filter(activo=True).order_by("nombre"),
+        label="Producto",
+        empty_label="Selecciona un producto",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    tipo_movimiento = forms.ChoiceField(
+        choices=TIPOS,
+        label="Tipo de movimiento",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    cantidad = forms.FloatField(
+        label="Cantidad",
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "any", "placeholder": "0"}),
+    )
+    motivo = forms.ModelChoiceField(
+        queryset=motivo_movimiento.objects.filter(activo=True).order_by("nombre"),
+        label="Motivo",
+        empty_label="Selecciona un motivo",
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    comentarios = forms.CharField(
+        required=False,
+        max_length=255,
+        label="Comentarios",
+        widget=forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+    )
+
+    def clean(self):
+        datos = super().clean()
+        cantidad = datos.get("cantidad")
+        producto = datos.get("producto")
+        if cantidad is None:
+            return datos
+        if not math.isfinite(cantidad) or cantidad <= 0:
+            self.add_error("cantidad", "Ingresa una cantidad finita mayor a cero.")
+        elif producto and producto.medida and not producto.medida.permite_decimales \
+                and not float(cantidad).is_integer():
+            self.add_error("cantidad", "Esta unidad de medida solo permite cantidades enteras.")
+        return datos

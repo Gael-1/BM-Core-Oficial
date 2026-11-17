@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Categorías{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div><h2>Categorías</h2><p class="text-muted">Clasifican los productos del inventario.</p></div>
+    {% if puede_inventario %}<a href="{% url 'categorias:add' %}" class="btn btn-primary">Nueva categoría</a>{% endif %}
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table">
+    <thead><tr><th>Nombre</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for c in categorias %}
+      <tr><td>{{ c.nombre }}</td><td>{% if c.activo %}Activa{% else %}Inactiva{% endif %}</td>
+      <td>{% if puede_inventario %}<a href="{% url 'categorias:edit' c.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>{% endif %}</td></tr>
+    {% empty %}
+      <tr><td colspan="3" class="text-center py-4">Aún no hay categorías.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+</div>
+{% endblock %}

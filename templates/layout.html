@@ -1,0 +1,181 @@
+{% load static %}
+{% load safe_url %}
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>BM-Core -
+      {% block title %}
+      {% endblock title %}
+    </title>
+    <meta name="description"
+          content="BM-Core Dashboard para gestión y administración." />
+    <meta name="keywords"
+          content="BM-Core, dashboard, administración, gestión, empresa" />
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/app.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/workspace-ui.css' %}" />
+    <script src="{% static 'js/sidebar.js' %}"></script>
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/simple-datatables@latest/dist/style.css" />
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.svg' %}">
+    <script src="{% static 'js/app.js' %}"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <script>
+      const djangoTheme = "{{ theme_preference|default:'' }}";
+      const urlToggleTheme = "{% url 'accounts:set_theme' %}";
+      const csrf_token = "{{ csrf_token }}";
+      const sessionAge = parseInt("{{ session_age|default_if_none:0 }}", 10) * 1000;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/simple-datatables@latest" defer></script>
+    <div class="template">
+      <nav class="navi">
+        <section class="header-nav">
+          <img src="{% static 'img/logo.png' %}"
+               alt="Logo"
+               class="logo"
+               width="120"
+               height="40" />
+          <h1 class="title-nav">BM-Core</h1>
+        </section>
+        <ul class="menu" hx-boost="true" hx-target="#content" hx-push-url="true">
+          {% for menu in menus %}
+            {% if menu.children.all %}
+              <li>
+                <details {% if menu.is_open %}open{% endif %}>
+                  <summary class="nav-link">
+                    <i class="fa-solid fa-{{ menu.icono }}"></i>
+                    {{ menu.nombre }}
+                    <i class="fa-solid fa-chevron-right arrow"></i>
+                  </summary>
+                  <ul class="submenu">
+                    {% for sub in menu.children.all %}
+                      <li>
+                        <a href="{{ sub.url|safe_url }}"
+                           class="sub-link nav-link {% if current_url == sub.url %}active{% endif %}">
+                          <i class="fa-solid fa-{{ sub.icono }}"></i>
+                          {{ sub.nombre }}
+                        </a>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </details>
+              </li>
+            {% else %}
+              <li>
+                <a href="{{ menu.url|safe_url }}"
+                   class="nav-link {% if current_url == menu.url %}active{% endif %}">
+                  <i class="fa-solid fa-{{ menu.icono }}"></i>
+                  {{ menu.nombre }}
+                </a>
+              </li>
+            {% endif %}
+          {% empty %}
+<li><a href="{% url 'home:index' %}" class="nav-link"><i class="fa-solid fa-house" aria-hidden="true"></i> Inicio</a></li>
+<li><a href="{% url 'inventory:productos' %}" class="nav-link"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i> Inventario</a></li>
+<li><a href="{% url 'proveedores:index' %}" class="nav-link"><i class="fa-solid fa-truck" aria-hidden="true"></i> Proveedores</a></li>
+<li><a href="{% url 'compra:index' %}" class="nav-link"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Compras</a></li>
+<li><a href="{% url 'inventory:alertas' %}" class="nav-link"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Alertas</a></li>
+<li><a href="{% url 'reportes:inicio' %}" class="nav-link"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Reportes</a></li>
+          {% endfor %}
+        </ul>
+        <section class="nav-footer">
+          <section class="user-info-container">
+            <i class="fa-solid fa-circle-user"></i>
+            <span class="user-name">{{ request.user.get_full_name|default:request.user.username }}</span>
+            <span title="Ver Notificaciones"><i class="fa-solid fa-bell"></i></span>
+            <span id="theme-toggle" class="theme-toggle" title="Cambiar tema"><i class="fa-solid fa-circle-half-stroke"></i></span>
+            <button class="logout-button" title="Cerrar sesión">
+              <i class="fa-solid fa-right-from-bracket"
+                 data-bs-toggle="modal"
+                 data-bs-target="#closeSessionModal"></i>
+            </button>
+          </section>
+        </section>
+      </nav>
+      <div id="headerMobile" class="navi-header-mobile">
+        <h1 class="title-nav-mobile">BM-Core</h1>
+        <section class="info-user-mobile">
+          <span id="theme-toggle" class="theme-toggle" title="Cambiar tema"><i class="fa-solid fa-circle-half-stroke"></i></span>
+          <i class="fa-solid fa-gear"></i>
+        </section>
+      </div>
+      <main id="content" class="content">
+        <nav class="module-shortcuts" aria-label="Módulos principales">
+<a href="{% url 'home:index' %}">Inicio</a>
+<a href="{% url 'inventory:productos' %}">Inventario</a>
+<a href="{% url 'proveedores:index' %}">Proveedores</a>
+<a href="{% url 'compra:index' %}">Compras</a>
+<a href="{% url 'inventory:alertas' %}">Alertas</a>
+<a href="{% url 'inventory:historial' %}">Movimientos</a>
+<a href="{% url 'categorias:index' %}">Categorías</a>
+<a href="{% url 'reportes:inicio' %}">Reportes</a>
+        </nav>
+        {% if messages %}
+          {% for message in messages %}
+            <section class="alert alert-dismissible alert-{{ message.tags }} fade show"
+                     role="alert">
+              {{ message }}
+              <button type="button"
+                      class="btn-close"
+                      data-bs-dismiss="alert"
+                      aria-label="Close"></button>
+            </section>
+          {% endfor %}
+        {% endif %}
+        {% block body %}
+        {% endblock body %}
+      </main>
+      <div id="footerMobile" class="navi-options-mobile">
+        <section class="btn-nav-mobile">
+          <a href="{% url 'home:index' %}" class="link-mobile-nav">
+            <i class="fa-solid fa-home"></i>
+          </a>
+        </section>
+        <section class="btn-nav-mobile">
+          <a href="{% url 'navigation:index' %}">
+            <i class="fa-solid fa-bars"></i>
+          </a>
+        </section>
+        {% comment %} <section class="btn-nav-mobile">
+          <i class="fa-solid fa-bell"></i>
+        </section> {% endcomment %}
+        <section class="btn-nav-mobile">
+          <i class="fa-solid fa-circle-user"></i>
+        </section>
+      </div>
+    </div>
+    <div class="modal fade" id="sessionModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Sesión expirada</h5>
+          </div>
+          <div class="modal-body">Se ha cerrado tu sesion por inactividad.</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" onclick="location.reload()">Continuar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal fade" id="closeSessionModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Cerrar sesion</h5>
+          </div>
+          <div class="modal-body">¿Estás seguro de que deseas cerrar sesión?</div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+            <form action="{% url 'accounts:logout' %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger">Cerrar sesión</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

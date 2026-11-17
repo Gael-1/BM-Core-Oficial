@@ -1,0 +1,76 @@
+{% load static %}
+<div class="card card-producto {% if producto and producto.necesita_reabastecimiento %}border-danger shadow-sm{% endif %}">
+  {% if add %}
+    <div class="card-header mb-2 text-center">
+      <span>Vista Previa</span>
+    </div>
+  {% endif %}
+
+  <!-- Insignia de Alerta por Stock Mínimo -->
+  {% if producto and producto.necesita_reabastecimiento %}
+    <div class="position-absolute top-0 end-0 m-2">
+      <span class="badge bg-danger">Reabastecer</span>
+    </div>
+  {% endif %}
+
+  {% if imagen %}
+    <img id="imageCard"
+         src="{{ imagen }}"
+         class="rounded img-card"
+         alt="{{ titulo }}"
+         height="auto"
+         width="100%">
+  {% else %}
+    <img id="imageCard"
+         class="rounded img-card"
+         src="{% static 'img/default.png' %}"
+         alt="Imagen por defecto"
+         height="auto"
+         width="100%" />
+  {% endif %}
+
+  <div class="card-body">
+    <h5 class="card-title">
+      <span id="titleCard">{{ titulo|default:producto.nombre }}</span>
+    </h5>
+    
+    <p class="card-text">
+      <small class="text-muted d-block" id="codigoCard">SKU: {{ codigo|default:producto.sku }}</small>
+      
+      <!-- Campo para lectura/visualización de Código de Barras -->
+      {% if codigo_barras or producto.codigo_barras %}
+        <small class="text-muted d-block" id="barcodeCard">
+          <i class="bi bi-barcode"></i> Código: {{ codigo_barras|default:producto.codigo_barras }}
+        </small>
+      {% endif %}
+
+      <span id="textCard" class="d-block mt-2">{{ desc|default:producto.descripcion }}</span>
+      <br>
+      <strong id="precioCard" class="text-primary">Precio: ${{ precio|default:producto.precio }}</strong>
+
+      <!-- Control de Existencias y Almacén -->
+      {% if stock is not None or producto.inventario %}
+        <br>
+        <span id="stockCard" class="{% if producto and producto.necesita_reabastecimiento %}text-danger fw-bold{% endif %}">
+          Stock: {{ stock|default:producto.inventario.cantidad }} {{ medida|default:producto.medida.nombre }}
+        </span>
+      {% else %}
+        <br>
+        <span id="stockCard" class="text-warning">Sin stock asignado</span>
+      {% endif %}
+
+      {% if almacen or producto.inventario.almacen %}
+        <br>
+        <small class="text-secondary" id="almacenCard">
+          <i class="bi bi-geo-alt"></i> Almacén: {{ almacen|default:producto.inventario.almacen.nombre }}
+        </small>
+      {% endif %}
+    </p>
+  </div>
+
+  {% if modificado or producto.modificado %}
+    <div class="card-footer text-muted small">
+      Última modificación: {{ modificado|default:producto.modificado|date:"d/m/Y H:i" }}
+    </div>
+  {% endif %}
+</div>

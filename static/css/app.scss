@@ -1,0 +1,380 @@
+@use "tokens" as t;
+@use "bootstrap/scss/bootstrap" with (
+  $primary: t.$primary,
+  $secondary: t.$secondary,
+  $success: t.$success,
+  $info: t.$info,
+  $warning: t.$warning,
+  $danger: t.$danger,
+
+  $theme-colors: (
+    "primary": t.$primary,
+    "secondary": t.$secondary,
+    "success": t.$success,
+    "info": t.$info,
+    "warning": t.$warning,
+    "danger": t.$danger,
+    "light": t.$gray-100,
+    "dark": #1c1e2e,
+  )
+);
+@use "overrides";
+@use "@fortawesome/fontawesome-free/css/all.min.css";
+@use "styles";
+
+//* COMANDO NECESARIO
+// To compile SCSS to CSS, run the following command in your terminal:
+// npx sass --load-path=node_modules static/css/app.scss static/css/app.css --style=compressed --watch
+/* === THEMING TOKENS (CSS variables) === */
+/* Dark por defecto */
+
+:root {
+  /* Tus tokens base */
+  --c-body-bg: #0a0d23;
+  --c-nav-bg: #1c1e2e;
+
+  --c-text: #e0e0e0;
+  --c-text-muted: #c5c9e6;
+  --c-subtitle: #f5f6fa;
+  --c-active: #ffffff;
+
+  --c-hover-bg: #2c2f45;
+  --c-border: #2c2f45;
+
+  --c-sub-link: #9fa6ff;
+
+  /* Map a variables de Bootstrap (opcional pero útil) */
+  --bs-body-bg: var(--c-body-bg);
+  --bs-body-color: var(--c-text);
+  --bs-card-bg: var(--c-nav-bg);
+  --bs-border-color: var(--c-border);
+  --bs-border-color-translucent: var(--c-border);
+  --bs-tertiary-bg: #243050;
+  --bs-card-color: var(--c-text);
+
+  --bs-primary: #031df6;
+  --bs-primary-hover: darken(#031df6, 7.5%);
+  --bs-secondary: #636474;
+  --bs-secondary-bg: #2c2f45;
+  --bs-success: #3c754b;
+  --bs-info: #54caf5;
+  --bs-warning: #ff9800;
+  --bs-danger: #f50208;
+  --bs-link-color-rgb: 159, 166, 255;
+  --bs-link-hover-color-rgb: 203, 208, 255;
+  --bs-link-color: #9fa6ff;
+  --bs-link-hover-color: #cbd0ff;
+
+  /* UI nativa (scrollbars, selects…) */
+  color-scheme: dark;
+}
+
+html {
+  color: var(--c-text);
+}
+
+/* Light: aplica con <html class="light"> */
+html.light {
+  --c-body-bg: #f5f6fa;
+  --c-nav-bg: #ffffff;
+
+  --c-text: #2b2c33;
+  --c-text-muted: #636474;
+  --c-subtitle: #636474;
+  --c-active: #031df6;
+
+  --c-hover-bg: #e5e9ff;
+  --c-border: #e0e0e0;
+
+  --c-sub-link: #3741a0;
+
+  --bs-border-color-translucent: rgba(0, 0, 0, 0.5);
+
+  /* Mapea a Bootstrap automáticamente */
+  --bs-body-bg: var(--c-body-bg);
+  --bs-body-color: var(--c-text);
+  --bs-card-bg: var(--c-nav-bg);
+  --bs-border-color: var(--c-border);
+  --bs-secondary-bg: #e8ecee;
+  --bs-tertiary-bg: #e5e9ff;
+
+  --bs-link-color-rgb: 0, 0, 238;
+  --bs-link-color: #0000ee;
+  --bs-link-hover-color-rgb: 55, 55, 160;
+  --bs-link-hover-color: #3737a0;
+
+  color-scheme: light;
+  color: var(--c-text);
+}
+
+/* ===== TU UI (adaptada a tokens) ===== */
+
+body {
+  background-color: var(--c-body-bg);
+  color: var(--c-text);
+  font-family: Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+}
+
+.template {
+  min-height: 100vh;
+  display: flex;
+  // gap: 1rem;
+  color: var(--c-text);
+}
+
+.navi {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  width: 20vw;
+  background-color: var(--c-nav-bg);
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem 1rem;
+  margin: 0 1rem;
+  // width: 100dvh;
+}
+
+.header-nav {
+  text-align: center;
+  padding: 2rem 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.title-nav {
+  margin: 0;
+  font-weight: bold;
+}
+
+.subtitle-nav {
+  color: var(--c-subtitle);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 1rem;
+  font-weight: bold;
+}
+
+.logo {
+  width: 40px;
+  vertical-align: middle;
+  padding: 0.3rem;
+}
+
+.menu {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.nav-link,
+.sub-link {
+  display: flex;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.sub-link {
+  color: var(--c-sub-link);
+  padding: 0.5rem 0.5rem;
+}
+
+.nav-link {
+  color: var(--c-text-muted);
+}
+
+.nav-link:hover,
+.sub-link:hover {
+  background-color: var(--c-hover-bg);
+  color: var(--c-active);
+}
+
+.nav-link.active,
+.sub-link.active {
+  font-weight: bold;
+  color: var(--c-active);
+}
+
+/* Submenús */
+.submenu {
+  list-style: none;
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 2px solid var(--c-border);
+  margin-left: 1.6rem;
+}
+
+.arrow {
+  margin-left: auto;
+}
+
+/* Para que el triangulito nativo sea invisible (opcional) */
+details summary {
+  list-style: none;
+}
+details summary::-webkit-details-marker {
+  display: none;
+}
+
+.nav-footer {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  padding: 1rem;
+  border-top: 1px solid var(--c-border);
+}
+
+.user-info-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  // font-size: 1.2rem;
+  justify-content: space-between;
+}
+
+.logout-button {
+  background: none;
+  border: none;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+}
+
+.logout-button:hover {
+  color: var(--c-active);
+}
+
+.user-name {
+  font-weight: bold;
+  width: 100%;
+}
+
+.theme-toggle {
+  cursor: pointer;
+  color: var(--c-text-muted);
+
+  &:hover {
+    color: var(--c-active);
+  }
+}
+
+html,
+body,
+.navi,
+.nav-link,
+.submenu .sub-link,
+.content {
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.navi-header-mobile,
+.navi-options-mobile {
+  display: none;
+  padding: 0.5rem 1rem;
+  width: 100%;
+  z-index: 1000;
+  background-color: var(--c-nav-bg);
+  align-items: center;
+  justify-content: center;
+}
+
+.title-nav-mobile {
+  margin: 0;
+  font-weight: bold;
+}
+
+.navi-header-mobile {
+  margin-bottom: 1rem;
+  // transition: transform 0.3s ease;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  justify-content: space-between;
+}
+
+.navi-options-mobile {
+  margin-top: 1rem;
+  // transition: transform 0.3s ease;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  justify-content: space-around;
+}
+
+.link-mobile-nav {
+  color: var(--c-text);
+  text-decoration: none;
+}
+
+// Estilos responsivos
+
+@media (max-width: 992px) {
+  .template {
+    flex-direction: column;
+  }
+
+  .navi {
+    display: none;
+  }
+
+  .navi-mobile {
+    display: flex;
+  }
+
+  .navi-options-mobile {
+    display: flex;
+  }
+
+  .navi-header-mobile {
+    display: flex;
+  }
+
+  .content {
+    padding: 1rem;
+    padding-top: 0;
+  }
+}
+
+// @media (max-width: 1200px) and (min-width: 768px) {
+//   .menu-name {
+//     display: none;
+//   }
+
+//   .navi {
+//     width: 5vw;
+//   }
+
+//   .title-nav {
+//     display: none;
+//   }
+
+//   .user-info-container {
+//     flex-direction: column;
+//   }
+
+//   .user-name {
+//     display: none;
+//   }
+
+//   .logo {
+//     margin: auto;
+//   }
+
+//   .nav-link,
+//   .submenu-toggle {
+//     justify-content: center;
+//   }
+// }

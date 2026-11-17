@@ -1,0 +1,8 @@
+{% extends "layout.html" %}
+{% block title %}Buscar producto{% endblock %}
+{% block body %}
+<div class="container py-3"><h2>Buscar producto</h2><p class="text-muted">Escanea o escribe el código de barras, QR o SKU.</p>
+<div class="card mb-4"><div class="card-body"><form method="get"><div class="input-group"><input name="q" aria-label="Código del producto" value="{{ query }}" class="form-control" autofocus required><button class="btn btn-primary">Buscar</button></div></form></div></div>
+{% if query %}{% include "inventory/partials/producto_card.html" %}{% endif %}
+<a href="{% url 'inventory:productos' %}" class="btn btn-outline-secondary mt-3">Volver al inventario</a></div>
+{% endblock %}

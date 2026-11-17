@@ -1,0 +1,74 @@
+{% extends "layout.html" %}
+{% load static %}
+{% block title %}
+  {% if form.instance.pk %}
+    Editar
+  {% else %}
+    Crear
+  {% endif %}
+  Orden de Compra
+{% endblock title %}
+{% block body %}
+  <div class="d-flex flex-wrap justify-content-between gap-3 mb-4"><div><h2>Orden de compra</h2><p class="text-muted">{{ orden.numero_de_orden }} · {{ orden.get_estatus_display }}</p></div><a href="{% url 'compra:index' %}" class="btn btn-outline-secondary align-self-start">Volver a compras</a></div>
+  <section class="row mb-3">
+    <div class="col-12 col-lg-4 mb-3">
+      <strong>Número de Orden:</strong> {{ orden.numero_de_orden }}
+    </div>
+    <div class="col-md-4 col-12 mb-3">
+      <strong>Proveedor:</strong> {{ orden.proveedor.nombre }}
+    </div>
+    <div class="col-lg-4 col-12 mb-3">
+      <strong>Negocio:</strong> {{ orden.negocio.nombre }}
+    </div>
+    <div class="col-lg-4 col-12 mb-3">
+      <strong>Fecha de Creación:</strong> {{ orden.fecha_creado|date:"d/m/Y H:i" }}
+    </div>
+    <div class="col-lg-4 col-12 mb-3">
+      <strong>Total:</strong> {{ orden.total }}
+    </div>
+  </section>
+  <h4>Productos en la Orden</h4>
+  <div class="card"><div class="table-responsive"><table class="table">
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Precio Unitario</th>
+        <th>Cantidad</th>
+        <th>Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in productos_en_orden %}
+        <tr>
+          <td>{{ item.producto.nombre }}</td>
+          <td>{{ item.precio_unitario }}</td>
+          <td>{{ item.cantidad }}</td>
+          <td>{{ item.subtotal }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" class="text-center">No hay productos en esta orden.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table></div></div>
+  {% if orden.estatus == 'pendiente' %}
+    {% if puede_admin %}<div class="row">
+      <div class="mt-3">
+        <form action="{% url 'compra:autorizar_od' orden.id %}" method="post">{% csrf_token %}<button type="submit" class="btn btn-secondary">Autorizar</button></form>
+      </div>
+      <div class="mt-3">
+        <form action="{% url 'compra:rechazar_od' orden.id %}" method="post">{% csrf_token %}<button type="submit" class="btn btn-danger">Rechazar</button></form>
+      </div>
+    </div>{% else %}<div class="alert alert-warning mt-3" role="alert">Pendiente de autorización por un administrador.</div>{% endif %}
+  {% elif orden.estatus == 'autorizada' %}
+    <div class="alert alert-success mt-3" role="alert">Esta orden ha sido autorizada.</div>
+    {% if puede_inventario %}<div class="mt-3">
+      <form action="{% url 'compra:completar_orden' orden.id %}" method="post">{% csrf_token %}<button type="submit" class="btn btn-primary">Recibir compra y actualizar inventario</button></form>
+    </div>{% endif %}
+  {% elif orden.estatus == 'rechazada' %}
+    <div class="alert alert-danger mt-3" role="alert">Esta orden ha sido rechazada.</div>
+  {% elif orden.estatus == 'completada' %}
+    <div class="alert alert-info mt-3" role="alert">Esta orden ha sido completada.</div>
+  {% endif %}
+{% endblock body %}

@@ -1,0 +1,5 @@
+{% extends "layout.html" %}
+{% block title %}Alertas de inventario{% endblock %}
+{% block body %}
+<div class="container py-3"><div class="d-flex flex-wrap justify-content-between gap-3 mb-4"><div><h2>Stock bajo</h2><p class="text-muted">{{ total_alertas }} producto{{ total_alertas|pluralize:'s' }} en o por debajo del mínimo.</p></div><a href="{% url 'inventory:productos' %}" class="btn btn-outline-secondary align-self-start">Volver al inventario</a></div>{% include "inventory/partials/tabla_alertas.html" %}</div>
+{% endblock %}
