@@ -21,7 +21,8 @@ def crear_datos():
     proveedor = Proveedor.objects.create(nombre="Proveedor", razon_social="Proveedor", rfc="DEF010101AA1",
                                          direccion="Centro", codigo_postal="64000", regimen_fiscal=regimen)
     categoria = Categoria.objects.create(nombre="Materiales")
-    medida = Medidas_Inventario.objects.create(nombre="Pieza", abreviatura="pza", permite_decimales=False)
+    medida, _ = Medidas_Inventario.objects.get_or_create(
+        nombre="Pieza", defaults={"abreviatura": "pza", "permite_decimales": False})
     almacen = Almacen.objects.create(nombre="Principal", negocio=negocio)
     producto = Producto.objects.create(nombre="Producto", sku="TEST-1", categoria_id=categoria, precio="12.50",
                                        medida=medida, stock_min=2, creado_por=usuario, modificado_por=usuario)
