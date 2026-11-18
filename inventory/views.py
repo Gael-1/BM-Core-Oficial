@@ -6,7 +6,7 @@ from django.db import transaction
 from django.db.models import F, FloatField, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 
 from .models import Almacen, Medidas_Inventario, Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
 from . import services
@@ -420,3 +420,15 @@ def medida_add_edit(request, pk=None):
         messages.success(request, "Unidad de medida guardada correctamente.")
         return redirect("inventory:medidas")
     return render(request, "inventory/medida_form.html", {"form": form, "medida": medida})
+
+
+def producto_por_codigo(request):
+    """Devuelve el id del producto activo con ese código de barras o SKU (para el escaneo)."""
+    codigo = request.GET.get("q", "").strip()
+    producto = None
+    if codigo:
+        activos = Producto.objects.filter(activo=True)
+        producto = activos.filter(codigo_barras=codigo).first() or activos.filter(sku=codigo).first()
+    if producto is None:
+        return JsonResponse({"encontrado": False}, status=404)
+    return JsonResponse({"encontrado": True, "id": producto.pk, "nombre": producto.nombre, "sku": producto.sku})

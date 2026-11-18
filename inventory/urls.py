@@ -17,6 +17,7 @@ urlpatterns = [
     path("buscar-codigo/", lectura(views.buscar_producto_codigo), name="buscar_codigo"),
 
     # Alertas de reabastecimiento
+    path("producto-por-codigo/", lectura(views.producto_por_codigo), name="producto_por_codigo"),
     path("alertas/", lectura(views.alertas_reabastecimiento), name="alertas"),
 
     # Entradas / salidas e historial

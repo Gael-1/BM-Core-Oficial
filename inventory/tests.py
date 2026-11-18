@@ -493,3 +493,35 @@ class MedidasCrudTests(TestCase):
     def test_formulario_de_producto_ofrece_las_unidades(self):
         respuesta = self.client.get(reverse("inventory:add"))
         self.assertContains(respuesta, "Litro")
+
+
+class EscaneoTests(TestCase):
+    def setUp(self):
+        self.d = crear_datos()
+        self.d["producto"].codigo_barras = "7501234567890"
+        self.d["producto"].save()
+        self.client.force_login(self.d["usuario"])
+
+    def test_encuentra_por_codigo_de_barras_y_por_sku(self):
+        for codigo in ("7501234567890", "TEST-1"):
+            with self.subTest(codigo=codigo):
+                respuesta = self.client.get(reverse("inventory:producto_por_codigo"), {"q": f" {codigo} "})
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertEqual(respuesta.json()["id"], self.d["producto"].pk)
+
+    def test_codigo_desconocido_o_vacio_da_404(self):
+        for codigo in ("NO-EXISTE", ""):
+            with self.subTest(codigo=codigo):
+                self.assertEqual(self.client.get(reverse("inventory:producto_por_codigo"), {"q": codigo}).status_code, 404)
+
+    def test_producto_inactivo_no_se_encuentra(self):
+        self.d["producto"].activo = False
+        self.d["producto"].save()
+        self.assertEqual(self.client.get(reverse("inventory:producto_por_codigo"), {"q": "TEST-1"}).status_code, 404)
+
+    def test_requiere_sesion(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("inventory:producto_por_codigo"), {"q": "TEST-1"}).status_code, 302)
+
+    def test_pantalla_de_movimiento_trae_el_campo_de_escaneo(self):
+        self.assertContains(self.client.get(reverse("inventory:movimiento")), "escaneo-codigo")
