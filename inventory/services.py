@@ -128,7 +128,8 @@ class MovimientoInvalido(ValueError):
     """Datos de un movimiento que no se pueden aceptar (cantidad, tipo, unidad de medida)."""
 
 
-def registrar_movimiento(producto, tipo, cantidad, usuario, almacen=None, motivo=None, comentarios=None):
+def registrar_movimiento(producto, tipo, cantidad, usuario, almacen=None, motivo=None, comentarios=None,
+                         permitir_inactivo=False):
     """Registra una ENTRADA o SALIDA y actualiza total y desglose. Úsala dentro de transaction.atomic().
 
     Devuelve (inventario, registro). Lanza MovimientoInvalido o ExistenciaInsuficiente.
@@ -141,7 +142,7 @@ def registrar_movimiento(producto, tipo, cantidad, usuario, almacen=None, motivo
     if not math.isfinite(cantidad) or cantidad <= 0:
         raise MovimientoInvalido("La cantidad debe ser un número finito mayor a cero.")
     producto = Producto.objects.select_for_update().select_related("medida").get(pk=producto.pk)
-    if not producto.activo:
+    if not producto.activo and not permitir_inactivo:
         raise MovimientoInvalido("El producto está inactivo.")
     if producto.medida and not producto.medida.permite_decimales and not cantidad.is_integer():
         raise MovimientoInvalido("Esta unidad de medida solo permite cantidades enteras.")

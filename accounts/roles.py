@@ -64,4 +64,5 @@ def rol_requerido(*roles):
 lectura = rol_requerido(*ROLES)                  # consultar pantallas y reportes
 gestion_inventario = rol_requerido(ADMIN, ALMACEN)  # productos, movimientos, categorías, recepción
 gestion_compras = rol_requerido(ADMIN, COMPRAS)     # proveedores y creación de órdenes
+gestion_ventas = rol_requerido(ADMIN, ALMACEN)      # registrar ventas
 solo_admin = rol_requerido(ADMIN)                   # autorizar/rechazar órdenes, negocios

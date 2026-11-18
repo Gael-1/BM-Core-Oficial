@@ -78,6 +78,7 @@
 <li><a href="{% url 'proveedores:index' %}" class="nav-link"><i class="fa-solid fa-truck" aria-hidden="true"></i> Proveedores</a></li>
 <li><a href="{% url 'negocio:index' %}" class="nav-link"><i class="fa-solid fa-store" aria-hidden="true"></i> Negocios</a></li>
 <li><a href="{% url 'compra:index' %}" class="nav-link"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Compras</a></li>
+<li><a href="{% url 'ventas:index' %}" class="nav-link"><i class="fa-solid fa-cash-register" aria-hidden="true"></i> Ventas</a></li>
 <li><a href="{% url 'inventory:alertas' %}" class="nav-link"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Alertas</a></li>
 <li><a href="{% url 'reportes:inicio' %}" class="nav-link"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Reportes</a></li>
 {% if puede_admin %}<li><a href="{% url 'accounts:usuarios' %}" class="nav-link"><i class="fa-solid fa-users" aria-hidden="true"></i> Usuarios</a></li>{% endif %}
@@ -111,6 +112,7 @@
 <a href="{% url 'proveedores:index' %}"{% if request.resolver_match.view_name == 'proveedores:index' %} class="active" aria-current="page"{% endif %}>Proveedores</a>
 <a href="{% url 'negocio:index' %}"{% if request.resolver_match.view_name == 'negocio:index' %} class="active" aria-current="page"{% endif %}>Negocios</a>
 <a href="{% url 'compra:index' %}"{% if request.resolver_match.view_name == 'compra:index' %} class="active" aria-current="page"{% endif %}>Compras</a>
+<a href="{% url 'ventas:index' %}"{% if request.resolver_match.view_name == 'ventas:index' %} class="active" aria-current="page"{% endif %}>Ventas</a>
 <a href="{% url 'inventory:alertas' %}"{% if request.resolver_match.view_name == 'inventory:alertas' %} class="active" aria-current="page"{% endif %}>Alertas</a>
 <a href="{% url 'inventory:pronostico' %}"{% if request.resolver_match.view_name == 'inventory:pronostico' %} class="active" aria-current="page"{% endif %}>Pronóstico</a>
 <a href="{% url 'inventory:historial' %}"{% if request.resolver_match.view_name == 'inventory:historial' %} class="active" aria-current="page"{% endif %}>Movimientos</a>

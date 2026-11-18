@@ -20,6 +20,7 @@ def permisos_context(request):
     usuario = request.user
     return {
         "puede_inventario": tiene_rol(usuario, (ADMIN, ALMACEN)),
+        "puede_ventas": tiene_rol(usuario, (ADMIN, ALMACEN)),
         "puede_compras": tiene_rol(usuario, (ADMIN, COMPRAS)),
         "puede_admin": tiene_rol(usuario, (ADMIN,)),
     }

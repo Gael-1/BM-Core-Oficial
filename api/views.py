@@ -149,3 +149,78 @@ def movimientos(request):
         consulta = consulta.filter(tipo_movimiento=request.GET["tipo"].upper())
     limite = _entero(request.GET.get("limite"), 25, 1, LIMITE_MAXIMO)
     return JsonResponse({"resultados": [_movimiento(m) for m in consulta[:limite]]})
+
+
+def _venta(v):
+    return {
+        "id": v.pk, "folio": v.folio, "fecha": v.fecha.isoformat(), "estatus": v.estatus,
+        "almacen": v.almacen.nombre, "cliente": v.cliente_nombre, "referencia": v.referencia_externa,
+        "origen": v.origen, "total": str(v.total),
+        "lineas": [
+            {"producto_id": l.producto_id, "sku": l.producto.sku, "cantidad": l.cantidad,
+             "precio_unitario": str(l.precio_unitario), "subtotal": str(l.subtotal)}
+            for l in v.lineas.select_related("producto")
+        ],
+    }
+
+
+def _crear_venta(request):
+    from ventas import services as ventas
+    from ventas.models import OrigenVenta
+
+    try:
+        datos = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "El cuerpo debe ser JSON válido."}, status=400)
+    if not isinstance(datos, dict) or not isinstance(datos.get("lineas"), list):
+        return JsonResponse({"error": "Envía un objeto JSON con la lista «lineas»."}, status=400)
+
+    almacen = Almacen.objects.select_related("negocio").filter(pk=datos["almacen"]).first() \
+        if isinstance(datos.get("almacen"), int) and not isinstance(datos.get("almacen"), bool) else None
+    if almacen is None:
+        return JsonResponse({"error": "Indica un almacén existente con «almacen» (id)."}, status=400)
+
+    lineas = []
+    for posicion, linea in enumerate(datos["lineas"], start=1):
+        if not isinstance(linea, dict):
+            return JsonResponse({"error": f"La línea {posicion} debe ser un objeto."}, status=400)
+        if linea.get("producto") is not None:
+            ident = linea["producto"]
+            producto = Producto.objects.filter(pk=ident).first() \
+                if isinstance(ident, int) and not isinstance(ident, bool) else None
+        else:
+            sku = str(linea.get("sku", "")).strip()
+            producto = Producto.objects.filter(sku=sku).first() if sku else None
+        if producto is None:
+            return JsonResponse({"error": f"Línea {posicion}: producto no encontrado."}, status=404)
+        cantidad = linea.get("cantidad")
+        if isinstance(cantidad, bool) or not isinstance(cantidad, (int, float)):
+            return JsonResponse({"error": f"Línea {posicion}: la cantidad debe ser un número."}, status=400)
+        precio = linea.get("precio_unitario")
+        if precio is not None and (isinstance(precio, bool) or not isinstance(precio, (int, float, str))):
+            return JsonResponse({"error": f"Línea {posicion}: el precio debe ser un número."}, status=400)
+        lineas.append({"producto": producto, "cantidad": cantidad, "precio_unitario": precio})
+
+    try:
+        venta, creada = ventas.crear_venta(
+            request.user, almacen, lineas, cliente_nombre=str(datos.get("cliente") or ""),
+            referencia=str(datos["referencia"]) if datos.get("referencia") is not None else None,
+            comentarios=str(datos.get("comentarios") or ""), origen=OrigenVenta.API,
+        )
+    except (ventas.VentaInvalida, services.ExistenciaInsuficiente) as error:
+        estado = 409 if isinstance(error, services.ExistenciaInsuficiente) or "insuficiente" in str(error) else 400
+        return JsonResponse({"error": str(error)}, status=estado)
+    return JsonResponse({"venta": _venta(venta), "duplicada": not creada}, status=201 if creada else 200)
+
+
+@require_http_methods(["GET", "POST"])
+def ventas_endpoint(request):
+    from ventas.models import EstatusVenta, Venta
+
+    if request.method == "POST":
+        return _crear_venta(request)
+    consulta = Venta.objects.select_related("almacen")
+    if request.GET.get("estatus") in EstatusVenta.values:
+        consulta = consulta.filter(estatus=request.GET["estatus"])
+    limite = _entero(request.GET.get("limite"), 25, 1, LIMITE_MAXIMO)
+    return JsonResponse({"resultados": [_venta(v) for v in consulta[:limite]]})

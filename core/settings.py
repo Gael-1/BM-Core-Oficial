@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "accounts",
     "categorias",
     "api",
+    "ventas",
     "reportes",
     "negocio",
     "proveedores",

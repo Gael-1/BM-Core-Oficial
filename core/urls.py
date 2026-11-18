@@ -21,6 +21,7 @@ urlpatterns = [
     path("categorias/", include(("categorias.urls", "categorias"), namespace="categorias")),
     path("api/v1/", include(("api.urls_v1", "api_v1"), namespace="api_v1")),
     path("api/", include(("api.urls", "api"), namespace="api")),
+    path("ventas/", include(("ventas.urls", "ventas"), namespace="ventas")),
     path("compras/", include(("compra.urls", "compra"), namespace="compra")),
     path("navigation/", include(("navigation.urls", "navigation"), namespace="navigation")),
 ]

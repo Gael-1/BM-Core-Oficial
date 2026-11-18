@@ -12,9 +12,17 @@ def movimientos(request):
     return vista(request)
 
 
+@csrf_exempt
+def ventas(request):
+    """GET lo puede usar cualquier rol; POST solo administrador y almacenista."""
+    vista = escritura_api(views.ventas_endpoint) if request.method == "POST" else lectura_api(views.ventas_endpoint)
+    return vista(request)
+
+
 urlpatterns = [
     path("productos/", lectura_api(views.productos), name="productos"),
     path("productos/<int:pk>/", lectura_api(views.producto_detalle), name="producto"),
     path("almacenes/", lectura_api(views.almacenes), name="almacenes"),
     path("movimientos/", movimientos, name="movimientos"),
+    path("ventas/", ventas, name="ventas"),
 ]
