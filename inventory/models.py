@@ -420,3 +420,19 @@ class motivo_movimiento(models.Model):
 
     def __str__(self):
         return self.nombre
+
+class AlertaStock(models.Model):
+    """Recuerda si ya se avisó que un producto llegó a su stock mínimo (evita correos repetidos)."""
+
+    producto = models.OneToOneField(
+        Producto, on_delete=models.CASCADE, related_name="alerta_stock", verbose_name="Producto"
+    )
+    notificado = models.DateTimeField(null=True, blank=True, verbose_name="Último aviso enviado")
+    cantidad_al_notificar = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Alerta de stock"
+        verbose_name_plural = "Alertas de stock"
+
+    def __str__(self):
+        return f"Alerta de {self.producto.nombre}"
