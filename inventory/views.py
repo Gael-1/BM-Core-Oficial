@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 
 from .models import Almacen, Medidas_Inventario, Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
+from . import pronostico as modulo_pronostico
 from . import services
 from .forms import AlmacenForm, MedidaForm, MovimientoForm, TraspasoForm, addProductForm
 
@@ -432,3 +433,14 @@ def producto_por_codigo(request):
     if producto is None:
         return JsonResponse({"encontrado": False}, status=404)
     return JsonResponse({"encontrado": True, "id": producto.pk, "nombre": producto.nombre, "sku": producto.sku})
+
+
+def pronostico(request):
+    """Consumo promedio y cantidad sugerida a comprar por producto."""
+    horizonte = modulo_pronostico.normalizar_horizonte(request.GET.get("dias"))
+    filas = modulo_pronostico.calcular_pronostico(horizonte)
+    return render(request, "inventory/pronostico.html", {
+        "filas": filas, "horizonte": horizonte,
+        "ventana": modulo_pronostico.VENTANA_DIAS,
+        "por_comprar": sum(1 for f in filas if f["sugerido"] > 0),
+    })

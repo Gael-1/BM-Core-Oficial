@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Pronóstico de demanda{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <h2>Pronóstico de demanda</h2>
+      <p class="text-muted mb-0">Estimación estadística básica: promedio de salidas de los últimos {{ ventana }} días. {{ por_comprar }} producto{{ por_comprar|pluralize }} por reabastecer.</p>
+    </div>
+    <form method="get" class="d-flex align-items-center gap-2">
+      <label for="dias" class="form-label mb-0">Cubrir los próximos</label>
+      <input id="dias" name="dias" type="number" min="7" max="90" value="{{ horizonte }}" class="form-control" style="width: 90px;">
+      <span>días</span>
+      <button class="btn btn-outline-primary" type="submit">Calcular</button>
+    </form>
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Producto</th><th>Existencia</th><th>Consumo diario</th><th>Cobertura (días)</th><th>Tendencia</th><th>Sugerido a comprar</th></tr></thead>
+    <tbody>
+    {% for f in filas %}
+      <tr>
+        <td>{{ f.producto.nombre }}<div class="small text-muted">{{ f.producto.sku }}</div></td>
+        <td>{{ f.existencia|floatformat:"-2" }}</td>
+        <td>{{ f.consumo_diario|floatformat:"-2" }}</td>
+        <td>{% if f.dias_cobertura is None %}—{% else %}{{ f.dias_cobertura|floatformat:"-1" }}{% endif %}</td>
+        <td>{% if f.tendencia is None %}—{% elif f.tendencia > 0 %}<span class="text-danger">▲ {{ f.tendencia }}%</span>{% elif f.tendencia < 0 %}<span class="text-success">▼ {{ f.tendencia_abs }}%</span>{% else %}0%{% endif %}</td>
+        <td>{% if f.sugerido > 0 %}<strong>{{ f.sugerido|floatformat:"-2" }}</strong>{% if puede_compras %} <a class="btn btn-outline-primary btn-sm ms-2" href="{% url 'compra:add' %}">Crear orden</a>{% endif %}{% else %}<span class="text-muted">Suficiente</span>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-center py-4">Aún no hay productos con existencias registradas.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+  <p class="small text-muted mt-3">Sugerido = consumo diario × días a cubrir + stock mínimo − existencia actual.</p>
+</div>
+{% endblock %}

@@ -525,3 +525,65 @@ class EscaneoTests(TestCase):
 
     def test_pantalla_de_movimiento_trae_el_campo_de_escaneo(self):
         self.assertContains(self.client.get(reverse("inventory:movimiento")), "escaneo-codigo")
+
+
+class PronosticoTests(TestCase):
+    def setUp(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        self.d = crear_datos()  # 10 unidades, stock_min 2
+        self.client.force_login(self.d["usuario"])
+        self.timezone, self.timedelta = timezone, timedelta
+
+    def salida(self, cantidad, hace_dias):
+        mov = Registro_Inventario.objects.create(
+            inventario_producto_id=self.d["inventario"], tipo_movimiento="SALIDA", cantidad_anterior=10,
+            cantidad_nueva=cantidad, creado_por=self.d["usuario"])
+        Registro_Inventario.objects.filter(pk=mov.pk).update(
+            creado=self.timezone.now() - self.timedelta(days=hace_dias))
+
+    def fila(self, dias=30):
+        from inventory.pronostico import calcular_pronostico
+
+        return calcular_pronostico(dias)[0]
+
+    def test_sin_consumo_no_sugiere_comprar_y_cobertura_indefinida(self):
+        fila = self.fila()
+        self.assertEqual(fila["consumo_diario"], 0)
+        self.assertIsNone(fila["dias_cobertura"])
+        self.assertEqual(fila["sugerido"], 0)  # 0*30 + 2 - 10 < 0
+
+    def test_consumo_y_cantidad_sugerida(self):
+        self.salida(30, 5)  # 1 por día
+        fila = self.fila(30)
+        self.assertEqual(fila["consumo_diario"], 1)
+        self.assertEqual(fila["dias_cobertura"], 10)
+        self.assertEqual(fila["sugerido"], 22)  # 1*30 + 2 - 10
+
+    def test_sugerido_se_redondea_hacia_arriba_en_unidades_enteras(self):
+        self.salida(10, 3)  # 0.333.../día -> 10 + 2 - 10 = 2 (sin decimales)
+        self.assertEqual(self.fila(30)["sugerido"], 2)
+        self.salida(1, 3)
+        self.assertEqual(self.fila(30)["sugerido"], 3)  # 11/30*30 = 11 + 2 - 10 = 3
+
+    def test_ignora_salidas_de_hace_mas_de_30_dias_y_calcula_tendencia(self):
+        self.salida(10, 5)
+        self.salida(5, 40)  # periodo anterior
+        fila = self.fila()
+        self.assertEqual(fila["salidas_30d"], 10)
+        self.assertEqual(fila["tendencia"], 100)
+
+    def test_horizonte_se_limita_a_un_rango_valido(self):
+        from inventory.pronostico import normalizar_horizonte
+
+        self.assertEqual(normalizar_horizonte("1000"), 90)
+        self.assertEqual(normalizar_horizonte("-4"), 7)
+        self.assertEqual(normalizar_horizonte("abc"), 30)
+        self.assertEqual(normalizar_horizonte(None), 30)
+
+    def test_pantalla_responde_y_requiere_sesion(self):
+        self.assertContains(self.client.get(reverse("inventory:pronostico"), {"dias": "x"}), "Pronóstico de demanda")
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("inventory:pronostico")).status_code, 302)
