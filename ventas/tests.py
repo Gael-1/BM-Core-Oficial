@@ -61,7 +61,7 @@ class ServicioVentasTests(VentasBase):
         otro = self.otro_producto()
         venta, _ = services.crear_venta(self.usuario, self.almacen, [
             self.linea(cantidad=2, precio="15.005"), self.linea(otro, 1)])
-        self.assertEqual(venta.total, Decimal("30.01") + Decimal("20.00"))
+        self.assertEqual(venta.total, Decimal("30.02") + Decimal("20.00"))  # 15.005 se redondea a 15.01
 
     def test_si_una_linea_falla_no_se_guarda_nada(self):
         otro = self.otro_producto(cantidad=1)
