@@ -10,6 +10,7 @@ html.light { --ui-accent: #4338ca; }
 .menu .nav-link:hover, .menu .nav-link:focus-visible { background: var(--c-hover-bg); }
 .module-shortcuts { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 28px; padding-bottom:18px; border-bottom:1px solid var(--ui-border); }
 .module-shortcuts a { text-decoration:none; color:var(--ui-muted); padding:8px 12px; border-radius:8px; font-size:14px; }
+.module-shortcuts a.active { color:var(--c-text); background:var(--c-hover-bg); font-weight:600; }
 .module-shortcuts a:hover, .module-shortcuts a:focus-visible { color:var(--c-text); background:var(--c-hover-bg); }
 .dashboard { max-width:1440px; margin:auto; display:grid; gap:28px; }
 .dashboard-header { display:flex; align-items:center; justify-content:space-between; gap:24px; }

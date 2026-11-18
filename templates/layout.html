@@ -105,17 +105,17 @@
       </div>
       <main id="content" class="content">
         <nav class="module-shortcuts" aria-label="Módulos principales">
-<a href="{% url 'home:index' %}">Inicio</a>
-<a href="{% url 'inventory:productos' %}">Inventario</a>
-<a href="{% url 'proveedores:index' %}">Proveedores</a>
-<a href="{% url 'negocio:index' %}">Negocios</a>
-<a href="{% url 'compra:index' %}">Compras</a>
-<a href="{% url 'inventory:alertas' %}">Alertas</a>
-<a href="{% url 'inventory:historial' %}">Movimientos</a>
-<a href="{% url 'inventory:almacenes' %}">Almacenes</a>
-<a href="{% url 'categorias:index' %}">Categorías</a>
-<a href="{% url 'inventory:medidas' %}">Unidades</a>
-<a href="{% url 'reportes:inicio' %}">Reportes</a>
+<a href="{% url 'home:index' %}"{% if request.resolver_match.view_name == 'home:index' %} class="active" aria-current="page"{% endif %}>Inicio</a>
+<a href="{% url 'inventory:productos' %}"{% if request.resolver_match.view_name == 'inventory:productos' %} class="active" aria-current="page"{% endif %}>Inventario</a>
+<a href="{% url 'proveedores:index' %}"{% if request.resolver_match.view_name == 'proveedores:index' %} class="active" aria-current="page"{% endif %}>Proveedores</a>
+<a href="{% url 'negocio:index' %}"{% if request.resolver_match.view_name == 'negocio:index' %} class="active" aria-current="page"{% endif %}>Negocios</a>
+<a href="{% url 'compra:index' %}"{% if request.resolver_match.view_name == 'compra:index' %} class="active" aria-current="page"{% endif %}>Compras</a>
+<a href="{% url 'inventory:alertas' %}"{% if request.resolver_match.view_name == 'inventory:alertas' %} class="active" aria-current="page"{% endif %}>Alertas</a>
+<a href="{% url 'inventory:historial' %}"{% if request.resolver_match.view_name == 'inventory:historial' %} class="active" aria-current="page"{% endif %}>Movimientos</a>
+<a href="{% url 'inventory:almacenes' %}"{% if request.resolver_match.view_name == 'inventory:almacenes' %} class="active" aria-current="page"{% endif %}>Almacenes</a>
+<a href="{% url 'categorias:index' %}"{% if request.resolver_match.view_name == 'categorias:index' %} class="active" aria-current="page"{% endif %}>Categorías</a>
+<a href="{% url 'inventory:medidas' %}"{% if request.resolver_match.view_name == 'inventory:medidas' %} class="active" aria-current="page"{% endif %}>Unidades</a>
+<a href="{% url 'reportes:inicio' %}"{% if request.resolver_match.view_name == 'reportes:inicio' %} class="active" aria-current="page"{% endif %}>Reportes</a>
         </nav>
         {% if messages %}
           {% for message in messages %}
