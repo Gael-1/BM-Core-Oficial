@@ -50,6 +50,14 @@ def serie_semanal(fechas_y_cantidades, ahora, semanas=SEMANAS_HISTORIAL):
     return serie
 
 
+def sin_ceros_iniciales(serie):
+    """Quita las semanas anteriores a la primera salida: aún no había historial, no demanda cero."""
+    for i, valor in enumerate(serie):
+        if valor > 0:
+            return serie[i:]
+    return []
+
+
 def holt(serie, alfa=ALFA, beta=BETA):
     """Suavizado exponencial doble. Devuelve (nivel, tendencia, error_absoluto_medio_un_paso)."""
     if len(serie) < 2:
@@ -109,7 +117,7 @@ def calcular_pronostico(horizonte=HORIZONTE_DEFECTO, ahora=None):
         salidas = actual.get(producto.pk, 0.0)
         consumo = salidas / VENTANA_DIAS
         demanda_simple = consumo * horizonte
-        serie = serie_semanal(historial.get(producto.pk, []), ahora)
+        serie = sin_ceros_iniciales(serie_semanal(historial.get(producto.pk, []), ahora))
         suficiente = sum(1 for v in serie if v > 0) >= MIN_SEMANAS_CON_DATOS
         if suficiente:
             demanda = demanda_en_dias(serie, horizonte)

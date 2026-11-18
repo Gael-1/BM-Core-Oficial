@@ -679,3 +679,9 @@ class SuavizadoExponencialTests(TestCase):
         respuesta = self.client.get(reverse("inventory:pronostico"))
         self.assertContains(respuesta, "Promedio simple")
         self.assertContains(respuesta, "Demanda estimada")
+
+    def test_las_semanas_previas_a_la_primera_salida_no_cuentan_como_demanda_cero(self):
+        from inventory.pronostico import sin_ceros_iniciales
+
+        self.assertEqual(sin_ceros_iniciales([0, 0, 0, 5, 0, 7]), [5, 0, 7])
+        self.assertEqual(sin_ceros_iniciales([0, 0, 0]), [])
