@@ -69,3 +69,5 @@ html.light { --ui-accent: #4338ca; }
 @media (max-width:900px) { .dashboard-grid, .dashboard-main-grid { grid-template-columns:1fr; } }
 @media (max-width:600px) { .content { padding:20px 16px !important; } .dashboard-header { align-items:flex-start; flex-direction:column; } .dashboard-stats, .quick-action-grid { grid-template-columns:1fr; } .panel-header { padding:20px; flex-wrap:wrap; } .dashboard-stat-card { padding:20px; } .module-shortcuts { gap:4px; } .module-shortcuts a { padding:8px; font-size:12px; } }
 @media (prefers-reduced-motion:reduce) { .quick-action { transition:none; } }
+
+.movement-transfer { background:var(--ui-surface); color:var(--ui-accent); border:1px solid var(--ui-border); }

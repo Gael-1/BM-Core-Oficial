@@ -5,6 +5,8 @@ from django.views.generic import TemplateView
 from inventory.models import Producto, Almacen, Registro_Inventario
 from proveedores.models import Proveedor
 
+from .kpis import calcular_kpis
+
 
 class HomeView(LoginRequiredMixin, TemplateView):
     template_name = "index.html"
@@ -33,6 +35,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
             "productos_bajo_stock": productos_bajo_stock[:5],
 
             "ultimos_movimientos": movimientos,
+            "kpi": calcular_kpis(),
         })
 
         return context
