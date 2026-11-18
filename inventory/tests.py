@@ -587,3 +587,95 @@ class PronosticoTests(TestCase):
         self.assertContains(self.client.get(reverse("inventory:pronostico"), {"dias": "x"}), "Pronóstico de demanda")
         self.client.logout()
         self.assertEqual(self.client.get(reverse("inventory:pronostico")).status_code, 302)
+
+
+class SuavizadoExponencialTests(TestCase):
+    def test_serie_constante_se_proyecta_igual_y_sin_error(self):
+        from inventory.pronostico import holt, pronosticar_semanas
+
+        nivel, tendencia, error = holt([10.0] * 8)
+        self.assertAlmostEqual(nivel, 10)
+        self.assertAlmostEqual(tendencia, 0)
+        self.assertAlmostEqual(error, 0)
+        for valor in pronosticar_semanas([10.0] * 8, 3):
+            self.assertAlmostEqual(valor, 10)
+
+    def test_serie_lineal_continua_la_tendencia(self):
+        from inventory.pronostico import pronosticar_semanas
+
+        esperado = pronosticar_semanas([10, 20, 30, 40, 50, 60], 2)
+        self.assertAlmostEqual(esperado[0], 70)
+        self.assertAlmostEqual(esperado[1], 80)
+
+    def test_una_tendencia_a_la_baja_nunca_da_consumo_negativo(self):
+        from inventory.pronostico import pronosticar_semanas
+
+        esperado = pronosticar_semanas([60, 40, 20, 5, 0], 6)
+        self.assertTrue(all(v >= 0 for v in esperado))
+        self.assertEqual(esperado[-1], 0)
+
+    def test_necesita_al_menos_dos_periodos(self):
+        from inventory.pronostico import holt
+
+        with self.assertRaises(ValueError):
+            holt([5.0])
+
+    def test_demanda_en_dias_prorratea_la_ultima_semana(self):
+        from inventory.pronostico import demanda_en_dias
+
+        serie = [14.0] * 8  # 14 por semana
+        self.assertAlmostEqual(demanda_en_dias(serie, 7), 14)
+        self.assertAlmostEqual(demanda_en_dias(serie, 10), 14 + 14 * 3 / 7)
+        self.assertAlmostEqual(demanda_en_dias(serie, 30), 14 * 4 + 14 * 2 / 7)
+
+    def test_serie_semanal_agrupa_por_semana_y_descarta_lo_antiguo(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from inventory.pronostico import serie_semanal
+
+        ahora = timezone.now()
+        datos = [(ahora - timedelta(days=1), 5), (ahora - timedelta(days=6), 2),
+                 (ahora - timedelta(days=8), 7), (ahora - timedelta(days=200), 99), (ahora + timedelta(days=2), 50)]
+        serie = serie_semanal(datos, ahora, semanas=4)
+        self.assertEqual(serie, [0.0, 0.0, 7.0, 7.0])
+
+    def test_con_historial_suficiente_usa_suavizado_y_proyecta_la_tendencia(self):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from inventory.pronostico import calcular_pronostico
+
+        d = crear_datos()  # 10 unidades, mínimo 2
+        for i, cantidad in enumerate([60, 50, 40, 30, 20, 10]):  # semana más reciente = la mayor
+            mov = Registro_Inventario.objects.create(
+                inventario_producto_id=d["inventario"], tipo_movimiento="SALIDA", cantidad_anterior=100,
+                cantidad_nueva=cantidad, creado_por=d["usuario"])
+            Registro_Inventario.objects.filter(pk=mov.pk).update(creado=timezone.now() - timedelta(days=3 + 7 * i))
+        fila = calcular_pronostico(7)[0]
+        self.assertEqual(fila["metodo"], "suavizado")
+        self.assertAlmostEqual(fila["demanda_estimada"], 70, places=1)  # la serie 10..60 sigue subiendo
+        self.assertEqual(fila["demanda_simple"], 42)  # 180 salidas en 30 días = 6 al día × 7
+        self.assertEqual(fila["sugerido"], 62)  # 70 + 2 - 10
+        self.assertIsNotNone(fila["error_pct"])
+
+    def test_con_pocos_datos_cae_al_promedio_simple(self):
+        from inventory.pronostico import calcular_pronostico
+
+        d = crear_datos()
+        Registro_Inventario.objects.create(
+            inventario_producto_id=d["inventario"], tipo_movimiento="SALIDA", cantidad_anterior=10,
+            cantidad_nueva=30, creado_por=d["usuario"])
+        fila = calcular_pronostico(30)[0]
+        self.assertEqual(fila["metodo"], "promedio")
+        self.assertEqual(fila["demanda_estimada"], fila["demanda_simple"])
+        self.assertIsNone(fila["error_pct"])
+
+    def test_la_pantalla_muestra_metodo_y_comparacion(self):
+        d = crear_datos()
+        self.client.force_login(d["usuario"])
+        respuesta = self.client.get(reverse("inventory:pronostico"))
+        self.assertContains(respuesta, "Promedio simple")
+        self.assertContains(respuesta, "Demanda estimada")

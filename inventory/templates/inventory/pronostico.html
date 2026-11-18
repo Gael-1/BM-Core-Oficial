@@ -5,7 +5,7 @@
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
       <h2>Pronóstico de demanda</h2>
-      <p class="text-muted mb-0">Estimación estadística básica: promedio de salidas de los últimos {{ ventana }} días. {{ por_comprar }} producto{{ por_comprar|pluralize }} por reabastecer.</p>
+      <p class="text-muted mb-0">Estimación estadística: suavizado exponencial con tendencia sobre las últimas 12 semanas; con poco historial usa el promedio de {{ ventana }} días. {{ por_comprar }} producto{{ por_comprar|pluralize }} por reabastecer.</p>
     </div>
     <form method="get" class="d-flex align-items-center gap-2">
       <label for="dias" class="form-label mb-0">Cubrir los próximos</label>
@@ -15,7 +15,7 @@
     </form>
   </div>
   <div class="card"><div class="table-responsive"><table class="table align-middle">
-    <thead><tr><th>Producto</th><th>Existencia</th><th>Consumo diario</th><th>Cobertura (días)</th><th>Tendencia</th><th>Sugerido a comprar</th></tr></thead>
+    <thead><tr><th>Producto</th><th>Existencia</th><th>Consumo diario</th><th>Cobertura (días)</th><th>Tendencia</th><th>Demanda estimada ({{ horizonte }} días)</th><th>Sugerido a comprar</th></tr></thead>
     <tbody>
     {% for f in filas %}
       <tr>
@@ -24,13 +24,16 @@
         <td>{{ f.consumo_diario|floatformat:"-2" }}</td>
         <td>{% if f.dias_cobertura is None %}—{% else %}{{ f.dias_cobertura|floatformat:"-1" }}{% endif %}</td>
         <td>{% if f.tendencia is None %}—{% elif f.tendencia > 0 %}<span class="text-danger">▲ {{ f.tendencia }}%</span>{% elif f.tendencia < 0 %}<span class="text-success">▼ {{ f.tendencia_abs }}%</span>{% else %}0%{% endif %}</td>
+        <td>{{ f.demanda_estimada|floatformat:"-2" }}
+          {% if f.metodo == 'suavizado' %}<span class="badge text-bg-primary" title="Suavizado exponencial con tendencia">Suavizado</span>{% else %}<span class="badge text-bg-secondary" title="Pocos datos: promedio de 30 días">Promedio</span>{% endif %}
+          <div class="small text-muted">Promedio simple: {{ f.demanda_simple|floatformat:"-2" }}{% if f.error_pct is not None %} · error típico {{ f.error_pct }}%{% endif %}</div></td>
         <td>{% if f.sugerido > 0 %}<strong>{{ f.sugerido|floatformat:"-2" }}</strong>{% if puede_compras %} <a class="btn btn-outline-primary btn-sm ms-2" href="{% url 'compra:add' %}">Crear orden</a>{% endif %}{% else %}<span class="text-muted">Suficiente</span>{% endif %}</td>
       </tr>
     {% empty %}
-      <tr><td colspan="6" class="text-center py-4">Aún no hay productos con existencias registradas.</td></tr>
+      <tr><td colspan="7" class="text-center py-4">Aún no hay productos con existencias registradas.</td></tr>
     {% endfor %}
     </tbody>
   </table></div></div>
-  <p class="small text-muted mt-3">Sugerido = consumo diario × días a cubrir + stock mínimo − existencia actual.</p>
+  <p class="small text-muted mt-3">Sugerido = demanda estimada + stock mínimo − existencia actual. El método «Suavizado» se usa cuando el producto tiene salidas en al menos 3 de las últimas 12 semanas; el «error típico» es cuánto se equivocó el modelo, en promedio, al predecir cada semana (menor es mejor).</p>
 </div>
 {% endblock %}
