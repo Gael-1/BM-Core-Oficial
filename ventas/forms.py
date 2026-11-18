@@ -2,6 +2,10 @@ from django import forms
 from django.forms import formset_factory
 
 from inventory.models import Almacen, Producto
+from proveedores.models import RegimenFiscal
+
+from .facturacion import rfc_valido
+from .models import Cliente
 
 
 class VentaForm(forms.Form):
@@ -9,6 +13,10 @@ class VentaForm(forms.Form):
         queryset=Almacen.objects.select_related("negocio").order_by("nombre"),
         label="Almacén de salida", empty_label="Selecciona un almacén",
         widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    cliente = forms.ModelChoiceField(
+        queryset=Cliente.objects.filter(activo=True), required=False, label="Cliente fiscal (para facturar)",
+        empty_label="Público en general", widget=forms.Select(attrs={"class": "form-select"}),
     )
     cliente_nombre = forms.CharField(
         required=False, max_length=150, label="Cliente (opcional)",
@@ -47,3 +55,38 @@ class LineaVentaForm(forms.Form):
 
 
 LineaVentaFormSet = formset_factory(LineaVentaForm, extra=6, max_num=20, validate_max=True)
+
+
+class ClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        fields = ["nombre", "razon_social", "rfc", "regimen_fiscal", "codigo_postal", "uso_cfdi", "email", "activo"]
+        widgets = {
+            "nombre": forms.TextInput(attrs={"class": "form-control"}),
+            "razon_social": forms.TextInput(attrs={"class": "form-control"}),
+            "rfc": forms.TextInput(attrs={"class": "form-control", "style": "text-transform: uppercase;",
+                                          "maxlength": "13"}),
+            "regimen_fiscal": forms.Select(attrs={"class": "form-select"}),
+            "codigo_postal": forms.TextInput(attrs={"class": "form-control", "maxlength": "5", "inputmode": "numeric"}),
+            "uso_cfdi": forms.Select(attrs={"class": "form-select"}),
+            "email": forms.EmailInput(attrs={"class": "form-control"}),
+            "activo": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["regimen_fiscal"].queryset = RegimenFiscal.objects.filter(activo=True).order_by("codigo")
+        self.fields["regimen_fiscal"].required = True
+        self.fields["regimen_fiscal"].empty_label = "Selecciona un régimen"
+
+    def clean_rfc(self):
+        rfc = self.cleaned_data["rfc"].strip().upper()
+        if not rfc_valido(rfc):
+            raise forms.ValidationError("RFC no válido: 12 caracteres para empresas o 13 para personas físicas.")
+        return rfc
+
+    def clean_codigo_postal(self):
+        cp = self.cleaned_data["codigo_postal"].strip()
+        if not (len(cp) == 5 and cp.isdigit()):
+            raise forms.ValidationError("El código postal debe tener 5 dígitos.")
+        return cp

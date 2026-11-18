@@ -34,7 +34,8 @@ def _precio(valor, producto):
     return precio.quantize(CENTAVOS, ROUND_HALF_UP)
 
 
-def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, comentarios="", origen=OrigenVenta.WEB):
+def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, comentarios="", origen=OrigenVenta.WEB,
+                cliente=None):
     """Registra la venta y descuenta cada línea del almacén.
 
     `lineas`: lista de dicts {producto, cantidad, precio_unitario (opcional)}.
@@ -54,7 +55,7 @@ def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, co
         raise VentaInvalida(f"Una venta admite hasta {MAX_LINEAS} productos.")
 
     try:
-        return _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen), True
+        return _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente), True
     except IntegrityError:
         # Otra petición con la misma referencia ganó la carrera: se devuelve esa venta.
         previa = Venta.objects.filter(referencia_externa=referencia).first() if referencia else None
@@ -63,10 +64,10 @@ def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, co
         raise
 
 
-def _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen):
+def _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente):
     with transaction.atomic():
         venta = Venta.objects.create(
-            folio=f"VT-{uuid.uuid4().hex[:12].upper()}", negocio=almacen.negocio, almacen=almacen,
+            folio=f"VT-{uuid.uuid4().hex[:12].upper()}", negocio=almacen.negocio, almacen=almacen, cliente=cliente,
             cliente_nombre=(cliente_nombre or "").strip()[:150], referencia_externa=referencia,
             origen=origen, comentarios=(comentarios or "")[:255], usuario=usuario,
         )

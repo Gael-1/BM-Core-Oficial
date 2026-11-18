@@ -241,3 +241,165 @@ class ApiVentasTests(VentasBase):
         self.post(self.cuerpo())
         respuesta = self.client.get(reverse("api_v1:ventas"), HTTP_AUTHORIZATION=f"Bearer {self.tokens[CONSULTA]}")
         self.assertEqual(len(respuesta.json()["resultados"]), 1)
+
+
+class FacturacionTests(VentasBase):
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from proveedores.models import RegimenFiscal
+        from ventas.models import Cliente
+
+        cls.regimen = RegimenFiscal.objects.get(codigo=601)
+        cls.cliente = Cliente.objects.create(
+            nombre="Cliente SA", razon_social="CLIENTE SA DE CV", rfc="CLI010101AB1",
+            regimen_fiscal=cls.regimen, codigo_postal="64000", email="c@ejemplo.com")
+
+    def venta(self, cantidad=2, **extras):
+        return services.crear_venta(self.usuario, self.almacen, [self.linea(cantidad=cantidad)], **extras)[0]
+
+    def test_prefactura_calcula_iva_y_guarda_copia_de_los_datos(self):
+        from ventas import facturacion
+
+        venta = self.venta(cantidad=3)  # 3 x 12.50 = 37.50
+        p = facturacion.generar_prefactura(venta, self.cliente, self.usuario)
+        self.assertEqual((p.subtotal, p.iva, p.total), (Decimal("37.50"), Decimal("6.00"), Decimal("43.50")))
+        self.assertEqual(p.numero, f"PF-{p.pk:06d}")
+        self.assertEqual(p.datos["receptor"]["rfc"], "CLI010101AB1")
+        self.assertEqual(p.datos["emisor"]["rfc"], "ABC010101AA1")
+        self.assertEqual(p.datos["conceptos"][0]["sku"], "TEST-1")
+        venta.refresh_from_db()
+        self.assertEqual(venta.cliente, self.cliente)
+        self.cliente.razon_social = "OTRA RAZON"
+        self.cliente.save()
+        p.refresh_from_db()
+        self.assertEqual(p.datos["receptor"]["nombre"], "CLIENTE SA DE CV")
+
+    def test_se_genera_una_sola_vez(self):
+        from ventas import facturacion
+        from ventas.models import Prefactura
+
+        venta = self.venta()
+        a = facturacion.generar_prefactura(venta, self.cliente, self.usuario)
+        b = facturacion.generar_prefactura(venta, self.cliente, self.usuario)
+        self.assertEqual(a.pk, b.pk)
+        self.assertEqual(Prefactura.objects.count(), 1)
+
+    def test_no_se_factura_una_venta_cancelada_ni_sin_cliente(self):
+        from ventas import facturacion
+
+        venta = self.venta()
+        with self.assertRaisesRegex(facturacion.PrefacturaInvalida, "cliente"):
+            facturacion.generar_prefactura(venta, None, self.usuario)
+        services.cancelar_venta(venta, self.usuario)
+        with self.assertRaisesRegex(facturacion.PrefacturaInvalida, "cancelada"):
+            facturacion.generar_prefactura(venta, self.cliente, self.usuario)
+
+    def test_datos_fiscales_incompletos_se_reportan(self):
+        from ventas import facturacion
+
+        self.cliente.rfc = "MALRFC"
+        self.cliente.codigo_postal = "12"
+        self.cliente.save()
+        with self.assertRaisesRegex(facturacion.PrefacturaInvalida, "RFC válido.*código postal"):
+            facturacion.generar_prefactura(self.venta(), self.cliente, self.usuario)
+        negocio = self.d["negocio"]
+        negocio.rfc = "X"
+        negocio.save()
+        with self.assertRaisesRegex(facturacion.PrefacturaInvalida, "negocio"):
+            facturacion.generar_prefactura(self.venta(), self.cliente, self.usuario)
+
+    def test_validacion_de_rfc(self):
+        from ventas.facturacion import rfc_valido
+
+        for bueno in ("XAXX010101000", "ABC010101AA1", "ABCD010101AA1", "Ñ&A010101AB2"):
+            self.assertTrue(rfc_valido(bueno), bueno)
+        for malo in ("", "ABC", "ABC01010AA1", "1BC010101AA1", "ABC010101AA1X", None):
+            self.assertFalse(rfc_valido(malo), malo)
+
+    def test_xml_es_valido_y_marca_que_no_es_cfdi(self):
+        import xml.etree.ElementTree as ET
+
+        from ventas import facturacion
+
+        p = facturacion.generar_prefactura(self.venta(cantidad=3), self.cliente, self.usuario)
+        raiz = ET.fromstring(facturacion.construir_xml(p))
+        self.assertEqual(raiz.tag, "Prefactura")
+        self.assertIn("No es un CFDI", raiz.get("Aviso"))
+        self.assertEqual(raiz.find("Receptor").get("Rfc"), "CLI010101AB1")
+        self.assertEqual(raiz.find("Comprobante").get("Total"), "43.50")
+        self.assertEqual(raiz.find("Impuestos/Traslado").get("TasaOCuota"), "0.160000")
+        self.assertEqual(raiz.find("Conceptos/Concepto").get("Cantidad"), "3")
+
+    def test_xml_escapa_caracteres_especiales(self):
+        import xml.etree.ElementTree as ET
+
+        from ventas import facturacion
+
+        self.producto.nombre = 'Tornillo <1/4> & "tuerca"'
+        self.producto.save()
+        p = facturacion.generar_prefactura(self.venta(), self.cliente, self.usuario)
+        raiz = ET.fromstring(facturacion.construir_xml(p))
+        self.assertEqual(raiz.find("Conceptos/Concepto").get("Descripcion"), 'Tornillo <1/4> & "tuerca"')
+
+    def test_sin_proveedor_de_timbrado_configurado(self):
+        from ventas import facturacion
+
+        self.assertFalse(facturacion.timbrado_disponible())
+        with self.assertRaises(facturacion.TimbradoNoDisponible):
+            facturacion.obtener_proveedor()
+
+    def test_pantallas_y_permisos(self):
+        venta = self.venta()
+        self.client.force_login(self.roles[ALMACEN])
+        self.assertEqual(self.client.get(reverse("ventas:prefactura", args=[venta.pk])).status_code, 302)
+        respuesta = self.client.post(reverse("ventas:prefactura_generar", args=[venta.pk]), {"cliente": self.cliente.pk})
+        self.assertRedirects(respuesta, reverse("ventas:prefactura", args=[venta.pk]))
+        self.assertContains(self.client.get(reverse("ventas:prefactura", args=[venta.pk])), "No es un CFDI")
+        xml = self.client.get(reverse("ventas:prefactura_xml", args=[venta.pk]))
+        self.assertEqual(xml.status_code, 200)
+        self.assertIn("attachment", xml["Content-Disposition"])
+        self.client.force_login(self.roles[CONSULTA])
+        self.assertEqual(self.client.get(reverse("ventas:prefactura", args=[venta.pk])).status_code, 200)
+        self.assertEqual(self.client.post(reverse("ventas:prefactura_generar", args=[venta.pk])).status_code, 403)
+
+    def test_generar_desde_la_pantalla_con_datos_incompletos_muestra_el_error(self):
+        venta = self.venta()
+        self.client.force_login(self.roles[ALMACEN])
+        respuesta = self.client.post(reverse("ventas:prefactura_generar", args=[venta.pk]), {}, follow=True)
+        self.assertContains(respuesta, "Elige el cliente")
+
+    def test_crud_de_clientes_valida_rfc_y_codigo_postal(self):
+        from ventas.models import Cliente
+
+        self.client.force_login(self.roles[ALMACEN])
+        base = {"nombre": "Nuevo", "razon_social": "NUEVO SA", "rfc": "nue010101ab1", "regimen_fiscal": self.regimen.pk,
+                "codigo_postal": "66450", "uso_cfdi": "G03", "email": "", "activo": "on"}
+        for extras in ({"rfc": "malo"}, {"codigo_postal": "6645"}, {"codigo_postal": "abcde"}, {"regimen_fiscal": ""}):
+            with self.subTest(extras=extras):
+                self.assertEqual(self.client.post(reverse("ventas:cliente_add"), {**base, **extras}).status_code, 200)
+        self.assertEqual(self.client.post(reverse("ventas:cliente_add"), base).status_code, 302)
+        self.assertEqual(Cliente.objects.get(nombre="Nuevo").rfc, "NUE010101AB1")
+        self.client.force_login(self.roles[COMPRAS])
+        self.assertEqual(self.client.post(reverse("ventas:cliente_add"), base).status_code, 403)
+        self.assertEqual(self.client.get(reverse("ventas:clientes")).status_code, 200)
+
+    def test_venta_con_cliente_desde_el_formulario_y_la_api(self):
+        from api.models import TokenAPI
+
+        self.client.force_login(self.roles[ALMACEN])
+        datos = PantallasVentasTests.datos(self, cliente=self.cliente.pk)
+        self.client.post(reverse("ventas:nueva"), datos)
+        venta = Venta.objects.get()
+        self.assertEqual((venta.cliente, venta.cliente_nombre), (self.cliente, "Cliente Uno"))
+
+        token = TokenAPI.crear(self.roles[ALMACEN], "pos")[1]
+        cuerpo = {"almacen": self.almacen.pk, "cliente_id": self.cliente.pk, "lineas": [{"sku": "TEST-1", "cantidad": 1}]}
+        respuesta = self.client.post(reverse("api_v1:ventas"), json.dumps(cuerpo), content_type="application/json",
+                                     HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(respuesta.status_code, 201)
+        self.assertEqual(respuesta.json()["venta"]["cliente_id"], self.cliente.pk)
+        cuerpo["cliente_id"] = 99999
+        respuesta = self.client.post(reverse("api_v1:ventas"), json.dumps(cuerpo), content_type="application/json",
+                                     HTTP_AUTHORIZATION=f"Bearer {token}")
+        self.assertEqual(respuesta.status_code, 400)

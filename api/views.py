@@ -154,7 +154,7 @@ def movimientos(request):
 def _venta(v):
     return {
         "id": v.pk, "folio": v.folio, "fecha": v.fecha.isoformat(), "estatus": v.estatus,
-        "almacen": v.almacen.nombre, "cliente": v.cliente_nombre, "referencia": v.referencia_externa,
+        "almacen": v.almacen.nombre, "cliente": v.cliente_nombre, "cliente_id": v.cliente_id, "referencia": v.referencia_externa,
         "origen": v.origen, "total": str(v.total),
         "lineas": [
             {"producto_id": l.producto_id, "sku": l.producto.sku, "cantidad": l.cantidad,
@@ -165,6 +165,7 @@ def _venta(v):
 
 
 def _crear_venta(request):
+    from ventas import models as ventas_modelos
     from ventas import services as ventas
     from ventas.models import OrigenVenta
 
@@ -179,6 +180,14 @@ def _crear_venta(request):
         if isinstance(datos.get("almacen"), int) and not isinstance(datos.get("almacen"), bool) else None
     if almacen is None:
         return JsonResponse({"error": "Indica un almacén existente con «almacen» (id)."}, status=400)
+
+    cliente = None
+    if datos.get("cliente_id") is not None:
+        ident = datos["cliente_id"]
+        cliente = ventas_modelos.Cliente.objects.filter(pk=ident, activo=True).first() \
+            if isinstance(ident, int) and not isinstance(ident, bool) else None
+        if cliente is None:
+            return JsonResponse({"error": "El cliente indicado no existe o está inactivo."}, status=400)
 
     lineas = []
     for posicion, linea in enumerate(datos["lineas"], start=1):
@@ -203,7 +212,7 @@ def _crear_venta(request):
 
     try:
         venta, creada = ventas.crear_venta(
-            request.user, almacen, lineas, cliente_nombre=str(datos.get("cliente") or ""),
+            request.user, almacen, lineas, cliente_nombre=str(datos.get("cliente") or (cliente.nombre if cliente else "")), cliente=cliente,
             referencia=str(datos["referencia"]) if datos.get("referencia") is not None else None,
             comentarios=str(datos.get("comentarios") or ""), origen=OrigenVenta.API,
         )

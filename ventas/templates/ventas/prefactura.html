@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prefactura {{ p.numero }}</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; color: #1a1a1a; margin: 0; background: #f4f4f4; }
+    .hoja { max-width: 860px; margin: 24px auto; background: #fff; padding: 32px; border: 1px solid #ddd; position: relative; }
+    .aviso { border: 2px solid #b45309; color: #b45309; padding: 8px 12px; font-weight: 600; text-align: center; margin-bottom: 20px; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .cols { display: flex; gap: 24px; flex-wrap: wrap; margin: 16px 0; }
+    .cols > div { flex: 1 1 300px; }
+    h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #555; margin: 0 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #ddd; text-align: left; }
+    th.num, td.num { text-align: right; }
+    .totales { margin-left: auto; width: 280px; margin-top: 16px; font-size: 14px; }
+    .totales div { display: flex; justify-content: space-between; padding: 3px 0; }
+    .totales .total { font-weight: 700; border-top: 2px solid #1a1a1a; font-size: 16px; }
+    .cancelada { color: #991b1b; border: 2px solid #991b1b; padding: 8px 12px; text-align: center; font-weight: 600; margin-bottom: 16px; }
+    .acciones { max-width: 860px; margin: 16px auto 0; display: flex; gap: 8px; padding: 0 8px; }
+    .acciones a, .acciones button { padding: 8px 14px; border: 1px solid #888; background: #fff; border-radius: 6px; cursor: pointer; text-decoration: none; color: #1a1a1a; font-size: 14px; }
+    @media print { body { background: #fff; } .acciones { display: none; } .hoja { border: 0; margin: 0; max-width: none; } }
+  </style>
+</head>
+<body>
+  <div class="acciones">
+    <button type="button" onclick="window.print()">Imprimir / guardar como PDF</button>
+    <a href="{% url 'ventas:prefactura_xml' venta.pk %}">Descargar XML</a>
+    <a href="{% url 'ventas:detalle' venta.pk %}">Volver a la venta</a>
+  </div>
+  <main class="hoja">
+    <div class="aviso">{{ aviso }}</div>
+    {% if venta.estatus == 'cancelada' %}<div class="cancelada">La venta fue cancelada: esta prefactura ya no tiene efecto.</div>{% endif %}
+    <h1>Prefactura {{ p.numero }}</h1>
+    <div>Fecha: {{ p.creada|date:"d/m/Y H:i" }} · Venta {{ d.venta_folio }} · Moneda {{ d.moneda }}</div>
+    <div class="cols">
+      <div><h2>Emisor</h2><strong>{{ d.emisor.nombre }}</strong><br>RFC {{ d.emisor.rfc }}<br>Régimen: {{ d.emisor.regimen }}<br>Lugar de expedición (C.P.): {{ d.emisor.codigo_postal }}</div>
+      <div><h2>Receptor</h2><strong>{{ d.receptor.nombre }}</strong><br>RFC {{ d.receptor.rfc }}<br>Régimen: {{ d.receptor.regimen }}<br>C.P. fiscal: {{ d.receptor.codigo_postal }}<br>Uso del CFDI: {{ d.receptor.uso_cfdi }}</div>
+    </div>
+    <table>
+      <thead><tr><th>SKU</th><th>Descripción</th><th class="num">Cantidad</th><th>Unidad</th><th class="num">Valor unitario</th><th class="num">Importe</th></tr></thead>
+      <tbody>
+      {% for c in d.conceptos %}
+        <tr><td>{{ c.sku }}</td><td>{{ c.descripcion }}</td><td class="num">{{ c.cantidad|floatformat:"-2" }}</td><td>{{ c.unidad }}</td><td class="num">${{ c.valor_unitario }}</td><td class="num">${{ c.importe }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <div class="totales">
+      <div><span>Subtotal</span><span>${{ p.subtotal }}</span></div>
+      <div><span>IVA 16%</span><span>${{ p.iva }}</span></div>
+      <div class="total"><span>Total</span><span>${{ p.total }}</span></div>
+    </div>
+  </main>
+</body>
+</html>
