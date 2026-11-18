@@ -6,8 +6,11 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
 from django.http import JsonResponse
-from .forms import OrdenDeCompraForm, formset
+from decimal import Decimal
+
+from .forms import ConfiguracionComprasForm, OrdenDeCompraForm, formset
 from .models import (
+    ConfiguracionCompras,
     ProductosProveedor,
     OrdenDeCompra,
     ProductoEnOrden,
@@ -44,7 +47,16 @@ def add(request):
             orden.save()
             for linea in form.lineas:
                 ProductoEnOrden.objects.create(orden=orden, usuario_creo=request.user, **linea)
-        messages.success(request, "Orden creada correctamente. Está pendiente de autorización.")
+            automatica = ConfiguracionCompras.obtener().aplica_a(Decimal(str(orden.total)))
+            if automatica:
+                orden.estatus = EstatusChoices.AUTORIZADA
+                orden.autorizada_por_regla = True
+                orden.usuario_modifico = request.user
+                orden.save()
+        if automatica:
+            messages.success(request, "Orden creada y autorizada automáticamente por la regla de compras.")
+        else:
+            messages.success(request, "Orden creada correctamente. Está pendiente de autorización.")
         return redirect("compra:view", orden_id=orden.pk)
     productos_iniciales = []
     if request.method == "POST":
@@ -190,3 +202,14 @@ def completar_orden(request, orden_id):
     except ValidationError as error:
         messages.error(request, " ".join(error.messages))
     return redirect("compra:view", orden_id=orden_id)
+
+
+def configuracion(request):
+    """Reglas de automatización de compras (solo administrador)."""
+    config = ConfiguracionCompras.obtener()
+    form = ConfiguracionComprasForm(request.POST if request.method == "POST" else None, instance=config)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Reglas de compras guardadas.")
+        return redirect("compra:configuracion")
+    return render(request, "compra/configuracion.html", {"form": form})

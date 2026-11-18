@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block title %}{% if usuario %}Editar{% else %}Nuevo{% endif %} usuario{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 640px;">
+  <h2 class="mb-4">{% if usuario %}Editar usuario{% else %}Nuevo usuario{% endif %}</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+    {% if field.name == 'is_active' %}
+    <div class="form-check mb-3">{{ field }}<label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+    {% else %}
+    <div class="mb-3">
+      <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+      {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'accounts:usuarios' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

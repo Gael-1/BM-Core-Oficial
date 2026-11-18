@@ -7,6 +7,7 @@ app_name = "compra"
 
 urlpatterns = [
     path("", lectura(views.index), name="index"),
+    path("configuracion/", solo_admin(views.configuracion), name="configuracion"),
     path("add/", gestion_compras(views.add), name="add"),
     path("view/<int:orden_id>/", lectura(views.view), name="view"),
     path("findProductos/", gestion_compras(views.findProductos), name="findProductos"),

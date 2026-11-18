@@ -1,10 +1,13 @@
 # accounts/views.py
 from django.contrib.auth.views import LoginView, LogoutView
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from accounts.models import UserProfile
-from .forms import LoginForm
+from .forms import LoginForm, UsuarioForm
+from .roles import rol_de
 from django.contrib.auth.decorators import login_required
 
 
@@ -36,3 +39,19 @@ def set_theme(request):
             profile.save()
             return JsonResponse({"status": "ok"})
     return JsonResponse({"status": "error"}, status=400)
+
+
+def usuarios(request):
+    lista = [{"usuario": u, "rol": rol_de(u) or ("Superusuario" if u.is_superuser else "Sin rol")}
+             for u in get_user_model().objects.order_by("username").prefetch_related("groups")]
+    return render(request, "accounts/usuarios.html", {"usuarios": lista})
+
+
+def usuario_add_edit(request, pk=None):
+    usuario = get_object_or_404(get_user_model(), pk=pk) if pk else None
+    form = UsuarioForm(request.POST if request.method == "POST" else None, instance=usuario, editor=request.user)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Usuario guardado correctamente.")
+        return redirect("accounts:usuarios")
+    return render(request, "accounts/usuario_form.html", {"form": form, "usuario": usuario})

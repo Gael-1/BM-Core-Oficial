@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Usuarios{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><h2>Usuarios y roles</h2><p class="text-muted mb-0">Quién puede entrar al sistema y qué puede hacer.</p></div>
+    <a href="{% url 'accounts:usuario_add' %}" class="btn btn-primary">+ Nuevo usuario</a>
+  </div>
+  <div class="card"><div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for fila in usuarios %}
+      <tr>
+        <td>{{ fila.usuario.username }}</td>
+        <td>{{ fila.usuario.get_full_name|default:"—" }}</td>
+        <td>{{ fila.usuario.email|default:"—" }}</td>
+        <td>{{ fila.rol }}</td>
+        <td>{% if fila.usuario.is_active %}Activo{% else %}Inactivo{% endif %}</td>
+        <td><a href="{% url 'accounts:usuario_edit' fila.usuario.pk %}" class="btn btn-outline-primary btn-sm">Editar</a></td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-center py-4">Aún no hay usuarios.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+  <div class="card mt-4"><div class="card-body">
+    <h3 class="h6">¿Qué puede hacer cada rol?</h3>
+    <ul class="mb-0 small">
+      <li><strong>Administrador:</strong> todo, incluida la autorización de compras, los negocios y los usuarios.</li>
+      <li><strong>Almacenista:</strong> productos, categorías, movimientos, traspasos y recepción de mercancía.</li>
+      <li><strong>Compras:</strong> proveedores y creación de órdenes de compra.</li>
+      <li><strong>Consulta:</strong> solo ver pantallas y reportes.</li>
+    </ul>
+  </div></div>
+</div>
+{% endblock %}

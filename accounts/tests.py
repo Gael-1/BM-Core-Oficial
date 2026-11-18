@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
-from accounts.roles import ADMIN, ALMACEN, COMPRAS, CONSULTA, ROLES, asignar_rol
+from accounts.roles import ADMIN, ALMACEN, COMPRAS, CONSULTA, ROLES, asignar_rol, rol_de
 from compra.models import EstatusChoices, OrdenDeCompra, ProductoEnOrden
 from inventory.tests import crear_datos
 
@@ -169,3 +169,79 @@ class RolesAlmacenesTests(TestCase):
                 self.assertEqual(self.estado(self.almacenista, nombre), 200)
                 self.assertEqual(self.estado(self.consulta, nombre), 403)
                 self.assertEqual(self.estado(self.comprador, nombre), 403)
+
+
+class GestionUsuariosTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+
+        cls.User = get_user_model()
+        cls.admin = cls.User.objects.create_user(username="jefe", password="test-only-1")
+        asignar_rol(cls.admin, ADMIN)
+
+    def setUp(self):
+        self.client.force_login(self.admin)
+
+    def datos(self, **extras):
+        base = {"username": "nuevo", "first_name": "Ana", "last_name": "Pérez", "email": "ana@ejemplo.com",
+                "is_active": "on", "rol": ALMACEN, "password1": "Cl4ve-segura-9", "password2": "Cl4ve-segura-9"}
+        base.update(extras)
+        return base
+
+    def test_solo_el_administrador_entra(self):
+        otro = self.User.objects.create_user(username="almacen", password="test-only-1")
+        asignar_rol(otro, ALMACEN)
+        self.client.force_login(otro)
+        self.assertEqual(self.client.get(reverse("accounts:usuarios")).status_code, 403)
+        self.assertEqual(self.client.post(reverse("accounts:usuario_add"), self.datos()).status_code, 403)
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse("accounts:usuarios")).status_code, 302)
+
+    def test_crear_usuario_con_rol_y_contrasena_funcional(self):
+        respuesta = self.client.post(reverse("accounts:usuario_add"), self.datos())
+        self.assertEqual(respuesta.status_code, 302)
+        nuevo = self.User.objects.get(username="nuevo")
+        self.assertEqual(rol_de(nuevo), ALMACEN)
+        self.assertTrue(nuevo.check_password("Cl4ve-segura-9"))
+        self.assertEqual(nuevo.email, "ana@ejemplo.com")
+
+    def test_contrasena_obligatoria_al_crear_debil_o_distinta_se_rechaza(self):
+        for extras in ({"password1": "", "password2": ""}, {"password1": "12345678", "password2": "12345678"},
+                       {"password2": "otra-Clave-9"}):
+            with self.subTest(extras=extras):
+                respuesta = self.client.post(reverse("accounts:usuario_add"), self.datos(**extras))
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertFalse(self.User.objects.filter(username="nuevo").exists())
+
+    def test_cambiar_rol_reemplaza_el_anterior_y_conserva_contrasena(self):
+        self.client.post(reverse("accounts:usuario_add"), self.datos())
+        nuevo = self.User.objects.get(username="nuevo")
+        self.client.post(reverse("accounts:usuario_edit", args=[nuevo.pk]),
+                         self.datos(rol=COMPRAS, password1="", password2=""))
+        nuevo.refresh_from_db()
+        self.assertEqual(list(nuevo.groups.values_list("name", flat=True)), [COMPRAS])
+        self.assertTrue(nuevo.check_password("Cl4ve-segura-9"))
+
+    def test_rol_obligatorio_y_valido(self):
+        for rol in ("", "Dios"):
+            with self.subTest(rol=rol):
+                self.assertEqual(self.client.post(reverse("accounts:usuario_add"), self.datos(rol=rol)).status_code, 200)
+        self.assertFalse(self.User.objects.filter(username="nuevo").exists())
+
+    def test_no_puede_quitarse_el_rol_ni_desactivarse(self):
+        ruta = reverse("accounts:usuario_edit", args=[self.admin.pk])
+        base = self.datos(username="jefe", password1="", password2="")
+        self.assertEqual(self.client.post(ruta, {**base, "rol": CONSULTA}).status_code, 200)
+        self.assertEqual(self.client.post(ruta, {**base, "rol": ADMIN, "is_active": ""}).status_code, 200)
+        self.admin.refresh_from_db()
+        self.assertEqual(rol_de(self.admin), ADMIN)
+        self.assertTrue(self.admin.is_active)
+
+    def test_desactivar_a_otro_usuario_le_impide_entrar(self):
+        self.client.post(reverse("accounts:usuario_add"), self.datos())
+        nuevo = self.User.objects.get(username="nuevo")
+        self.client.post(reverse("accounts:usuario_edit", args=[nuevo.pk]),
+                         self.datos(is_active="", password1="", password2=""))
+        self.client.logout()
+        self.assertFalse(self.client.login(username="nuevo", password="Cl4ve-segura-9"))

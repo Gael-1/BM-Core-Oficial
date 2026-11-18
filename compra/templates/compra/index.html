@@ -8,7 +8,10 @@
   <div class="container py-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div><h2>Órdenes de compra</h2><p class="text-muted mb-0">Solicita, autoriza y recibe mercancía de tus proveedores.</p></div>
-    {% if puede_compras %}<a href="{% url 'compra:add' %}" class="btn btn-primary">+ Nueva orden de compra</a>{% endif %}
+    <div class="d-flex gap-2">
+      {% if puede_admin %}<a href="{% url 'compra:configuracion' %}" class="btn btn-outline-secondary">Reglas</a>{% endif %}
+      {% if puede_compras %}<a href="{% url 'compra:add' %}" class="btn btn-primary">+ Nueva orden de compra</a>{% endif %}
+    </div>
   </div>
   <div class="card"><div class="table-responsive"><table class="table" id="ordenes-compra-table">
     <thead>

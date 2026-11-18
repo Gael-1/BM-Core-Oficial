@@ -31,6 +31,12 @@ def asignar_rol(usuario, nombre):
     usuario.groups.add(grupo)
 
 
+def rol_de(usuario):
+    """Nombre del primer rol del sistema que tiene el usuario (o cadena vacía)."""
+    nombres = set(usuario.groups.values_list("name", flat=True))
+    return next((r for r in ROLES if r in nombres), "")
+
+
 def tiene_rol(usuario, roles):
     if not usuario.is_authenticated:
         return False

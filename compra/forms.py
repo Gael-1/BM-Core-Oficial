@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django import forms
 from proveedores.models import ProductosProveedor
-from .models import OrdenDeCompra, ProductoEnOrden
+from .models import ConfiguracionCompras, OrdenDeCompra, ProductoEnOrden
 
 
 class OrdenDeCompraForm(forms.ModelForm):
@@ -135,3 +135,20 @@ formset = forms.inlineformset_factory(
     extra=1,
     can_delete=False,
 )
+
+
+
+class ConfiguracionComprasForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionCompras
+        fields = ["autoautorizar", "monto_maximo"]
+        widgets = {
+            "autoautorizar": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "monto_maximo": forms.NumberInput(attrs={"class": "form-control", "step": "0.01", "min": "0"}),
+        }
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get("autoautorizar") and not (datos.get("monto_maximo") or 0) > 0:
+            self.add_error("monto_maximo", "Indica un monto mayor a cero para activar la regla.")
+        return datos

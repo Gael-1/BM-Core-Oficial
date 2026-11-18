@@ -74,6 +74,9 @@ class OrdenDeCompra(models.Model):
         default=EstatusChoices.PENDIENTE,
         verbose_name="Estatus",
     )
+    autorizada_por_regla = models.BooleanField(
+        default=False, verbose_name="Autorizada automáticamente por regla"
+    )
 
     class Meta:
         verbose_name = "Orden de compra"
@@ -130,3 +133,26 @@ class ProductoEnOrden(models.Model):
 
     def __str__(self):
         return f"{self.producto.nombre} - Cantidad: {self.cantidad} - Precio unitario: {self.precio_unitario}"
+
+
+class ConfiguracionCompras(models.Model):
+    """Reglas de automatización de compras (un único registro)."""
+
+    autoautorizar = models.BooleanField(
+        default=False, verbose_name="Autorizar automáticamente las órdenes pequeñas"
+    )
+    monto_maximo = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0, verbose_name="Monto máximo para autorizar solas",
+        help_text="Las órdenes con total menor o igual a este monto se autorizan al crearse.",
+    )
+
+    class Meta:
+        verbose_name = "Configuración de compras"
+        verbose_name_plural = "Configuración de compras"
+
+    @classmethod
+    def obtener(cls):
+        return cls.objects.get_or_create(pk=1)[0]
+
+    def aplica_a(self, total):
+        return self.autoautorizar and self.monto_maximo > 0 and total <= self.monto_maximo

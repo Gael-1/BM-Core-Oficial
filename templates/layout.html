@@ -80,6 +80,7 @@
 <li><a href="{% url 'compra:index' %}" class="nav-link"><i class="fa-solid fa-cart-shopping" aria-hidden="true"></i> Compras</a></li>
 <li><a href="{% url 'inventory:alertas' %}" class="nav-link"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Alertas</a></li>
 <li><a href="{% url 'reportes:inicio' %}" class="nav-link"><i class="fa-solid fa-chart-column" aria-hidden="true"></i> Reportes</a></li>
+{% if puede_admin %}<li><a href="{% url 'accounts:usuarios' %}" class="nav-link"><i class="fa-solid fa-users" aria-hidden="true"></i> Usuarios</a></li>{% endif %}
           {% endfor %}
         </ul>
         <section class="nav-footer">
@@ -117,6 +118,7 @@
 <a href="{% url 'categorias:index' %}"{% if request.resolver_match.view_name == 'categorias:index' %} class="active" aria-current="page"{% endif %}>Categorías</a>
 <a href="{% url 'inventory:medidas' %}"{% if request.resolver_match.view_name == 'inventory:medidas' %} class="active" aria-current="page"{% endif %}>Unidades</a>
 <a href="{% url 'reportes:inicio' %}"{% if request.resolver_match.view_name == 'reportes:inicio' %} class="active" aria-current="page"{% endif %}>Reportes</a>
+{% if puede_admin %}<a href="{% url 'accounts:usuarios' %}"{% if request.resolver_match.view_name == 'accounts:usuarios' %} class="active" aria-current="page"{% endif %}>Usuarios</a>{% endif %}
         </nav>
         {% if messages %}
           {% for message in messages %}

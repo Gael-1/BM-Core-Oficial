@@ -1,5 +1,6 @@
 """Flujo completo con usuarios de cada rol: compra -> autorización -> recepción -> traspaso -> reporte."""
 import json
+from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
@@ -102,3 +103,78 @@ class FlujoCompletoTests(TestCase):
             self.assertIn(esperado, texto)
         self.assertEqual(Registro_Inventario.objects.count(), 3)
         self.assertEqual(self.client.post(reverse("inventory:movimiento"), {}).status_code, 403)
+
+
+class AutorizacionAutomaticaTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.d = crear_datos()
+        User = get_user_model()
+        cls.compras = User.objects.create_user(username="auto_compras", password="test-only")
+        asignar_rol(cls.compras, COMPRAS)
+        cls.admin = User.objects.create_user(username="auto_admin", password="test-only")
+        asignar_rol(cls.admin, ADMIN)
+
+    def crear_orden(self, cantidad):
+        d = self.d
+        self.client.force_login(self.compras)
+        self.client.post(reverse("compra:add"), {
+            "numero_de_orden": "X", "subtotal": "0.01", "total": "0.01",
+            "proveedor": d["proveedor"].pk, "negocio": d["negocio"].pk,
+            "productos_json": json.dumps([{"producto_id": d["producto"].pk, "cantidad": cantidad}]),
+        })
+        return OrdenDeCompra.objects.latest("pk")
+
+    def configurar(self, activa, monto):
+        from compra.models import ConfiguracionCompras
+
+        ConfiguracionCompras.objects.update_or_create(pk=1, defaults={"autoautorizar": activa, "monto_maximo": monto})
+
+    def test_por_defecto_no_se_autoriza_sola(self):
+        orden = self.crear_orden(1)
+        self.assertEqual(orden.estatus, EstatusChoices.PENDIENTE)
+        self.assertFalse(orden.autorizada_por_regla)
+
+    def test_orden_dentro_del_limite_se_autoriza_y_queda_marcada(self):
+        self.configurar(True, "50.00")  # 3 piezas * 12.50 = 37.50
+        orden = self.crear_orden(3)
+        self.assertEqual(orden.estatus, EstatusChoices.AUTORIZADA)
+        self.assertTrue(orden.autorizada_por_regla)
+        self.assertIsNone(orden.usuario_autorizo)
+
+    def test_el_limite_es_inclusivo_y_lo_mayor_queda_pendiente(self):
+        self.configurar(True, "37.50")
+        self.assertEqual(self.crear_orden(3).estatus, EstatusChoices.AUTORIZADA)
+        self.assertEqual(self.crear_orden(4).estatus, EstatusChoices.PENDIENTE)
+
+    def test_regla_desactivada_o_monto_cero_no_autoriza(self):
+        for activa, monto in ((False, "500"), (True, "0")):
+            with self.subTest(activa=activa, monto=monto):
+                self.configurar(activa, monto)
+                self.assertEqual(self.crear_orden(1).estatus, EstatusChoices.PENDIENTE)
+
+    def test_orden_autorizada_por_regla_se_puede_recibir(self):
+        self.configurar(True, "100")
+        orden = self.crear_orden(2)
+        almacenista = get_user_model().objects.create_user(username="auto_alm", password="test-only")
+        asignar_rol(almacenista, ALMACEN)
+        self.client.force_login(almacenista)
+        self.client.post(reverse("compra:completar_orden", args=[orden.pk]))
+        orden.refresh_from_db()
+        self.assertEqual(orden.estatus, EstatusChoices.COMPLETADA)
+
+    def test_solo_el_administrador_configura_la_regla(self):
+        self.client.force_login(self.compras)
+        self.assertEqual(self.client.get(reverse("compra:configuracion")).status_code, 403)
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(reverse("compra:configuracion"), {"autoautorizar": "on", "monto_maximo": "250.00"})
+        self.assertEqual(respuesta.status_code, 302)
+        from compra.models import ConfiguracionCompras
+
+        self.assertTrue(ConfiguracionCompras.obtener().aplica_a(Decimal("250.00")))
+
+    def test_no_se_puede_activar_sin_monto(self):
+        self.client.force_login(self.admin)
+        respuesta = self.client.post(reverse("compra:configuracion"), {"autoautorizar": "on", "monto_maximo": "0"})
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIn("monto_maximo", respuesta.context["form"].errors)

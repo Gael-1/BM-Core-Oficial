@@ -62,7 +62,7 @@
       </div>
     </div>{% else %}<div class="alert alert-warning mt-3" role="alert">Pendiente de autorización por un administrador.</div>{% endif %}
   {% elif orden.estatus == 'autorizada' %}
-    <div class="alert alert-success mt-3" role="alert">Esta orden ha sido autorizada.</div>
+    <div class="alert alert-success mt-3" role="alert">{% if orden.autorizada_por_regla %}Autorizada automáticamente por la regla de compras (monto dentro del límite configurado).{% else %}Esta orden ha sido autorizada.{% endif %}</div>
     {% if puede_inventario %}<div class="mt-3">
       <form action="{% url 'compra:completar_orden' orden.id %}" method="post">{% csrf_token %}<button type="submit" class="btn btn-primary">Recibir compra y actualizar inventario</button></form>
     </div>{% endif %}

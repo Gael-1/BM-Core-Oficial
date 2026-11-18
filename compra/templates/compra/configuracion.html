@@ -1,0 +1,21 @@
+{% extends "layout.html" %}
+{% block title %}Reglas de compras{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 640px;">
+  <h2>Reglas de compras</h2>
+  <p class="text-muted mb-4">Automatiza la autorización de las órdenes pequeñas. Las demás siguen requiriendo a un administrador, y la orden queda marcada como autorizada por regla.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="form-check mb-3">{{ form.autoautorizar }}<label class="form-check-label" for="{{ form.autoautorizar.id_for_label }}">{{ form.autoautorizar.label }}</label></div>
+    <div class="mb-4">
+      <label for="{{ form.monto_maximo.id_for_label }}" class="form-label">{{ form.monto_maximo.label }}</label>
+      {{ form.monto_maximo }}
+      <div class="form-text">{{ form.monto_maximo.help_text }}</div>
+      {% for e in form.monto_maximo.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'compra:index' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
