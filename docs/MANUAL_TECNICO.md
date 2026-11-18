@@ -1,7 +1,7 @@
 # BM-Core — Manual técnico
 
 ## 1. Stack
-Python 3.13, Django 5.2, templates de Django con Bootstrap 5, HTMX y crispy-forms. Base de datos: PostgreSQL en producción (vía `DATABASE_URL`) o SQLite en desarrollo. Servidor: gunicorn + WhiteNoise.
+Python 3.12 o superior (la imagen Docker usa 3.13), Django 5.2, templates de Django con Bootstrap 5, HTMX y crispy-forms. Base de datos: PostgreSQL en producción (vía `DATABASE_URL`) o SQLite en desarrollo. Servidor: gunicorn + WhiteNoise.
 
 ## 2. Estructura
 | App | Responsabilidad |
@@ -75,9 +75,9 @@ Detrás de Nginx con HTTPS define `USE_HTTPS=True` y `CSRF_TRUSTED_ORIGINS=https
 En `/admin/` → Usuarios → editar usuario → **Grupos**. Un usuario sin grupo no puede usar ningún módulo.
 
 ## 11. Pendientes conocidos
-- `Negocio_Inventario` (existencia por negocio, actualizada al recibir compras) sigue siendo una fuente aparte del desglose por almacén; podría derivarse de `Existencia_Almacen` agrupando por el negocio de cada almacén.
+- `Negocio_Inventario` solo conserva el historial de recepciones por negocio; la existencia por negocio se calcula desde los almacenes (ver «Datos de ejemplo y existencias por negocio»).
 - El almacén predeterminado es único por producto; no hay ubicación predeterminada por negocio.
-- La presentación del proyecto menciona React; la implementación usa templates de Django + HTMX.
+- **Decisión de diseño:** la presentación inicial del proyecto mencionaba React; la implementación final usa templates de Django con Bootstrap 5 y HTMX, que cubren todas las pantallas sin un frontend separado.
 
 ## Datos de ejemplo y existencias por negocio
 
