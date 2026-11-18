@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+{% block title %}Tokens de API{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <h2>Tokens de API</h2>
+  <p class="text-muted">Permiten que otro sistema (ventas, una tienda en línea, un ERP) consulte productos y existencias o registre movimientos.</p>
+
+  {% if token_nuevo %}
+  <div class="alert alert-warning" role="alert">
+    <strong>Copia este token ahora: no se volverá a mostrar.</strong>
+    <div class="mt-2"><code id="token-nuevo" class="user-select-all">{{ token_nuevo }}</code></div>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4"><div class="card-body">
+    <h3 class="h6">Nuevo token</h3>
+    <form method="post" class="row g-3" novalidate>
+      {% csrf_token %}
+      <div class="col-md-5"><label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>{{ form.nombre }}
+        {% for e in form.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-md-5"><label for="{{ form.usuario.id_for_label }}" class="form-label">{{ form.usuario.label }}</label>{{ form.usuario }}
+        <div class="form-text">{{ form.usuario.help_text }}</div>
+        {% for e in form.usuario.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-md-2 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit">Crear token</button></div>
+    </form>
+  </div></div>
+
+  <div class="card"><div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Sistema</th><th>Usuario</th><th>Token</th><th>Último uso</th><th>Estado</th><th></th></tr></thead>
+    <tbody>
+    {% for t in tokens %}
+      <tr>
+        <td>{{ t.nombre }}</td><td>{{ t.usuario.username }}</td><td><code>{{ t.inicio }}…</code></td>
+        <td>{{ t.ultimo_uso|date:"d/m/Y H:i"|default:"Nunca" }}</td>
+        <td>{% if t.activo %}Activo{% else %}Revocado{% endif %}</td>
+        <td>{% if t.activo %}<form method="post" action="{% url 'api:revocar' t.pk %}">{% csrf_token %}<button class="btn btn-outline-danger btn-sm" type="submit">Revocar</button></form>{% endif %}</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6" class="text-center py-4">Aún no hay tokens.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+
+  <div class="card mt-4"><div class="card-body">
+    <h3 class="h6">Ejemplo de uso</h3>
+    <pre class="mb-2 small"><code>curl -H "Authorization: Bearer TU_TOKEN" {{ request.scheme }}://{{ request.get_host }}/api/v1/productos/?q=tornillo
+
+curl -X POST -H "Authorization: Bearer TU_TOKEN" -H "Content-Type: application/json" \
+     -d '{"sku": "TOR-001", "tipo": "SALIDA", "cantidad": 2}' \
+     {{ request.scheme }}://{{ request.get_host }}/api/v1/movimientos/</code></pre>
+    <p class="small text-muted mb-0">Endpoints: <code>GET /api/v1/productos/</code>, <code>/productos/&lt;id&gt;/</code>, <code>/almacenes/</code>, <code>/movimientos/</code> y <code>POST /api/v1/movimientos/</code> (administrador o almacenista).</p>
+  </div></div>
+</div>
+{% endblock %}

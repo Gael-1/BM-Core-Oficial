@@ -19,6 +19,8 @@ urlpatterns = [
     path("proveedores/", include(("proveedores.urls", "proveedores"), namespace="proveedores")),
     path("negocios/", include(("negocio.urls", "negocio"), namespace="negocio")),
     path("categorias/", include(("categorias.urls", "categorias"), namespace="categorias")),
+    path("api/v1/", include(("api.urls_v1", "api_v1"), namespace="api_v1")),
+    path("api/", include(("api.urls", "api"), namespace="api")),
     path("compras/", include(("compra.urls", "compra"), namespace="compra")),
     path("navigation/", include(("navigation.urls", "navigation"), namespace="navigation")),
 ]

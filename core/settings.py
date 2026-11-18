@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     "inventory",
     "accounts",
     "categorias",
+    "api",
     "reportes",
     "negocio",
     "proveedores",

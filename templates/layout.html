@@ -119,6 +119,7 @@
 <a href="{% url 'inventory:medidas' %}"{% if request.resolver_match.view_name == 'inventory:medidas' %} class="active" aria-current="page"{% endif %}>Unidades</a>
 <a href="{% url 'reportes:inicio' %}"{% if request.resolver_match.view_name == 'reportes:inicio' %} class="active" aria-current="page"{% endif %}>Reportes</a>
 {% if puede_admin %}<a href="{% url 'accounts:usuarios' %}"{% if request.resolver_match.view_name == 'accounts:usuarios' %} class="active" aria-current="page"{% endif %}>Usuarios</a>{% endif %}
+{% if puede_admin %}<a href="{% url 'api:tokens' %}"{% if request.resolver_match.view_name == 'api:tokens' %} class="active" aria-current="page"{% endif %}>API</a>{% endif %}
         </nav>
         {% if messages %}
           {% for message in messages %}

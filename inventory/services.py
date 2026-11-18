@@ -10,9 +10,11 @@ Reglas:
 Todas las funciones deben llamarse dentro de `transaction.atomic()` y con el producto
 bloqueado (`select_for_update`), como ya hacen las vistas.
 """
+import math
+
 from django.db.models import Sum
 
-from .models import Existencia_Almacen
+from .models import Existencia_Almacen, Inventario_Producto, Producto, Registro_Inventario
 
 EPS = 1e-9
 
@@ -120,3 +122,60 @@ def inventario_de_negocio(negocio):
             "almacenes": filas,
         }
     return sorted(por_producto.values(), key=lambda f: f["producto"].nombre.lower())
+
+
+class MovimientoInvalido(ValueError):
+    """Datos de un movimiento que no se pueden aceptar (cantidad, tipo, unidad de medida)."""
+
+
+def registrar_movimiento(producto, tipo, cantidad, usuario, almacen=None, motivo=None, comentarios=None):
+    """Registra una ENTRADA o SALIDA y actualiza total y desglose. Úsala dentro de transaction.atomic().
+
+    Devuelve (inventario, registro). Lanza MovimientoInvalido o ExistenciaInsuficiente.
+    """
+    if tipo not in ("ENTRADA", "SALIDA"):
+        raise MovimientoInvalido("El tipo debe ser ENTRADA o SALIDA.")
+    if isinstance(cantidad, bool) or not isinstance(cantidad, (int, float)):
+        raise MovimientoInvalido("La cantidad debe ser un número.")
+    cantidad = float(cantidad)
+    if not math.isfinite(cantidad) or cantidad <= 0:
+        raise MovimientoInvalido("La cantidad debe ser un número finito mayor a cero.")
+    producto = Producto.objects.select_for_update().select_related("medida").get(pk=producto.pk)
+    if not producto.activo:
+        raise MovimientoInvalido("El producto está inactivo.")
+    if producto.medida and not producto.medida.permite_decimales and not cantidad.is_integer():
+        raise MovimientoInvalido("Esta unidad de medida solo permite cantidades enteras.")
+
+    inventario = Inventario_Producto.objects.filter(producto_id=producto).first()
+    asegurar_existencias(inventario)
+    almacen = almacen or (inventario.almacen if inventario else None)
+    anterior = inventario.cantidad if inventario else 0.0
+    if tipo == "SALIDA":
+        if cantidad - anterior > EPS:
+            raise ExistenciaInsuficiente(f"Existencia insuficiente: hay {anterior:g} disponibles.")
+        if not puede_retirar(inventario, almacen, cantidad):
+            nombre = almacen.nombre if almacen else "Sin asignar"
+            raise ExistenciaInsuficiente(
+                f"Existencia insuficiente en «{nombre}»: hay {existencia_en(inventario, almacen):g}."
+            )
+    if inventario is None:
+        inventario = Inventario_Producto.objects.create(
+            producto_id=producto, cantidad=0, almacen=almacen, creado_por=usuario, modificado_por=usuario
+        )
+    delta = cantidad if tipo == "ENTRADA" else -cantidad
+    inventario.cantidad = round(anterior + delta, 4)
+    inventario.modificado_por = usuario
+    inventario.save()
+    aplicar(inventario, almacen, delta)
+    registro = Registro_Inventario.objects.create(
+        inventario_producto_id=inventario,
+        tipo_movimiento=tipo,
+        cantidad_anterior=anterior,
+        cantidad_nueva=cantidad,
+        almacen_destino=almacen if tipo == "ENTRADA" else None,
+        almacen_origen=almacen if tipo == "SALIDA" else None,
+        motivo=motivo,
+        comentarios=comentarios or None,
+        creado_por=usuario,
+    )
+    return inventario, registro
