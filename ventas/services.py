@@ -61,6 +61,7 @@ def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, co
     try:
         venta = _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente)
         _prefactura_automatica(venta, usuario)
+        _avisar_venta(venta)
         return venta, True
     except IntegrityError:
         # Otra petición con la misma referencia ganó la carrera: se devuelve esa venta.
@@ -68,6 +69,18 @@ def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, co
         if previa:
             return previa, False
         raise
+
+
+def _avisar_venta(venta):
+    try:
+        from api import webhooks
+
+        webhooks.emitir("venta.creada", {
+            "folio": venta.folio, "total": str(venta.total), "almacen": venta.almacen.nombre,
+            "cliente": venta.cliente_nombre, "referencia_externa": venta.referencia_externa, "origen": venta.origen,
+        })
+    except Exception:  # un aviso nunca debe deshacer una venta
+        logger.exception("No se pudo programar el webhook de %s", venta.folio)
 
 
 def _prefactura_automatica(venta, usuario):

@@ -28,3 +28,4 @@ sqlparse==0.5.3
 tornado==6.5.2
 tqdm==4.67.1
 whitenoise==6.9.0
+segno>=1.6

@@ -198,6 +198,10 @@ def completar_orden(request, orden_id):
             orden.estatus = EstatusChoices.COMPLETADA
             orden.usuario_modifico = request.user
             orden.save()
+            from api import webhooks
+            webhooks.emitir("compra.recibida", {
+                "numero_de_orden": orden.numero_de_orden, "proveedor": orden.proveedor.nombre, "total": str(orden.total),
+            })
         messages.success(request, "Compra recibida. Las existencias se actualizaron correctamente.")
     except ValidationError as error:
         messages.error(request, " ".join(error.messages))

@@ -1,0 +1,22 @@
+{% extends "layout.html" %}
+{% block title %}Etiquetas QR{% endblock %}
+{% block body %}
+<style>
+  .hoja-etiquetas{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .etiqueta{border:1px dashed var(--bs-border-color,#999);padding:10px;text-align:center;break-inside:avoid;background:#fff;color:#000}
+  .etiqueta svg{width:120px;height:120px}
+  @media print{.no-imprimir,.navi,.alert{display:none!important}.etiqueta{border:1px solid #000}}
+</style>
+<div class="container py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3 no-imprimir">
+    <div><h2>Etiquetas QR</h2><p class="text-muted mb-0">Imprime y pega la etiqueta; se escanea con la cámara o un lector. Filtra con <code>?ids=1,2,3</code>.</p></div>
+    <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir</button>
+  </div>
+  {% if not qr_disponible %}<div class="alert alert-warning no-imprimir">Falta la librería de QR en el servidor. Instálala con <code>pip install segno</code> y reinicia.</div>{% endif %}
+  <section class="hoja-etiquetas">
+    {% for e in etiquetas %}
+    <article class="etiqueta">{% if e.svg %}{{ e.svg }}{% endif %}<div class="fw-semibold small">{{ e.producto.nombre|truncatechars:30 }}</div><div class="small">{{ e.valor }}</div></article>
+    {% empty %}<p class="text-muted">No hay productos activos.</p>{% endfor %}
+  </section>
+</div>
+{% endblock %}

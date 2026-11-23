@@ -16,6 +16,11 @@ urlpatterns = [
     # Buscar producto por código de barras / SKU
     path("buscar-codigo/", lectura(views.buscar_producto_codigo), name="buscar_codigo"),
 
+    # Etiquetas QR y CSV
+    path("etiquetas/", lectura(views.etiquetas), name="etiquetas"),
+    path("exportar/", lectura(views.exportar_productos), name="exportar"),
+    path("importar/", gestion_inventario(views.importar_productos), name="importar"),
+
     # Alertas de reabastecimiento
     path("producto-por-codigo/", lectura(views.producto_por_codigo), name="producto_por_codigo"),
     path("pronostico/", lectura(views.pronostico), name="pronostico"),

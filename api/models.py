@@ -44,3 +44,39 @@ class TokenAPI(models.Model):
         if not token or not token.startswith(PREFIJO):
             return None
         return cls.objects.select_related("usuario").filter(hash=_hash(token), activo=True).first()
+
+
+EVENTOS = [
+    ("venta.creada", "Venta registrada"),
+    ("compra.recibida", "Compra recibida"),
+    ("stock.bajo", "Producto con stock bajo"),
+]
+
+
+class Webhook(models.Model):
+    """Dirección a la que BM-Core avisa (POST JSON firmado) cuando ocurre un evento."""
+
+    nombre = models.CharField(max_length=100, verbose_name="Nombre (para qué sistema es)")
+    url = models.URLField(max_length=300, verbose_name="URL de destino")
+    eventos = models.CharField(max_length=200, verbose_name="Eventos", help_text="Separados por coma.")
+    secreto = models.CharField(max_length=64, editable=False)
+    activo = models.BooleanField(default=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    ultimo_envio = models.DateTimeField(null=True, blank=True)
+    ultimo_estado = models.CharField(max_length=120, blank=True)
+
+    class Meta:
+        verbose_name = "Webhook"
+        verbose_name_plural = "Webhooks"
+        ordering = ["-creado"]
+
+    def save(self, *args, **kwargs):
+        if not self.secreto:
+            self.secreto = secrets.token_hex(24)
+        super().save(*args, **kwargs)
+
+    def lista_eventos(self):
+        return [e.strip() for e in self.eventos.split(",") if e.strip()]
+
+    def __str__(self):
+        return self.nombre

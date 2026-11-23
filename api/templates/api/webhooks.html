@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+{% block title %}Webhooks{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <h2>Webhooks</h2>
+  <p class="text-muted">BM-Core avisa por HTTP a otros sistemas (ERP, tienda en línea, Zapier, n8n) cuando ocurre un evento. Cada aviso es un POST en JSON con la firma <code>X-BMCore-Signature: sha256=…</code> (HMAC-SHA256 del cuerpo con el secreto).</p>
+  <div class="card mb-4"><div class="card-body">
+    <h3 class="h6">Nuevo webhook</h3>
+    <form method="post" class="row g-3" novalidate>
+      {% csrf_token %}
+      <div class="col-md-4"><label for="{{ form.nombre.id_for_label }}" class="form-label">{{ form.nombre.label }}</label>{{ form.nombre }}{% for e in form.nombre.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-md-8"><label for="{{ form.url.id_for_label }}" class="form-label">{{ form.url.label }}</label>{{ form.url }}{% for e in form.url.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-12"><span class="form-label d-block">{{ form.eventos.label }}</span>{{ form.eventos }}{% for e in form.eventos.errors %}<div class="text-danger small">{{ e }}</div>{% endfor %}</div>
+      <div class="col-12"><button class="btn btn-primary" type="submit">Crear webhook</button></div>
+    </form>
+  </div></div>
+  <div class="card"><div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Sistema</th><th>Destino</th><th>Eventos</th><th>Secreto</th><th>Último envío</th><th></th></tr></thead>
+    <tbody>
+    {% for h in hooks %}
+    <tr><td>{{ h.nombre }}{% if not h.activo %} <span class="badge text-bg-secondary">Pausado</span>{% endif %}</td>
+      <td class="small text-break">{{ h.url }}</td><td class="small">{{ h.eventos }}</td>
+      <td><code class="user-select-all small">{{ h.secreto }}</code></td>
+      <td class="small">{% if h.ultimo_envio %}{{ h.ultimo_envio|date:"d/m/Y H:i" }}<br>{{ h.ultimo_estado }}{% else %}—{% endif %}</td>
+      <td class="text-nowrap">
+        <form method="post" action="{% url 'api:webhook_alternar' h.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-secondary">{% if h.activo %}Pausar{% else %}Activar{% endif %}</button></form>
+        <form method="post" action="{% url 'api:webhook_eliminar' h.pk %}" class="d-inline">{% csrf_token %}<button class="btn btn-sm btn-outline-danger">Eliminar</button></form>
+      </td></tr>
+    {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Aún no hay webhooks.</td></tr>{% endfor %}
+    </tbody></table></div></div>
+</div>
+{% endblock %}

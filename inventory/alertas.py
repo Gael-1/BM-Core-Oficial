@@ -72,6 +72,14 @@ def _marcar(inventarios):
         )
 
 
+def _avisar_webhook(inventario):
+    from api import webhooks
+
+    producto = inventario.producto_id
+    webhooks.emitir("stock.bajo", {"sku": producto.sku, "nombre": producto.nombre,
+                                   "existencia": inventario.cantidad, "stock_min": producto.stock_min})
+
+
 def revisar(inventario_pk):
     """Avisa si el producto acaba de caer al mínimo; rearma la alerta si ya se recuperó."""
     inventario = Inventario_Producto.objects.select_related("producto_id").filter(pk=inventario_pk).first()
@@ -85,6 +93,7 @@ def revisar(inventario_pk):
         return False
     if _enviar([inventario]):
         _marcar([inventario])
+        _avisar_webhook(inventario)
         return True
     return False
 

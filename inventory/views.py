@@ -444,3 +444,51 @@ def pronostico(request):
         "ventana": modulo_pronostico.VENTANA_DIAS,
         "por_comprar": sum(1 for f in filas if f["sugerido"] > 0),
     })
+
+
+# --- Etiquetas QR y CSV ---
+
+def etiquetas(request):
+    """Hoja imprimible con un QR por producto (todos, o los de `?ids=1,2,3`)."""
+    from . import catalogo
+
+    productos_qs = Producto.objects.filter(activo=True).order_by("nombre")
+    ids = [int(i) for i in request.GET.get("ids", "").split(",") if i.strip().isdigit()]
+    if ids:
+        productos_qs = productos_qs.filter(pk__in=ids)
+    filas = [{"producto": p, "valor": catalogo.valor_qr(p), "svg": catalogo.qr_svg(catalogo.valor_qr(p))}
+             for p in productos_qs[:300]]
+    disponible = catalogo.qr_svg("x") is not None
+    return render(request, "inventory/etiquetas.html", {"etiquetas": filas, "qr_disponible": disponible})
+
+
+def exportar_productos(request):
+    from . import catalogo
+
+    respuesta = HttpResponse(catalogo.exportar_csv(), content_type="text/csv; charset=utf-8")
+    respuesta["Content-Disposition"] = 'attachment; filename="productos.csv"'
+    return respuesta
+
+
+def importar_productos(request):
+    from . import catalogo
+
+    errores = []
+    if request.method == "POST":
+        archivo = request.FILES.get("archivo")
+        if archivo is None:
+            errores = ["Elige un archivo CSV."]
+        else:
+            try:
+                creados, actualizados = catalogo.importar_csv(archivo, request.user)
+            except catalogo.CsvInvalido as error:
+                errores = error.errores
+            else:
+                messages.success(request, f"Importación lista: {creados} productos nuevos y {actualizados} actualizados.")
+                return redirect("inventory:productos")
+    return render(request, "inventory/importar.html", {"errores": errores, "columnas": ", ".join(catalogo_columnas())})
+
+
+def catalogo_columnas():
+    from .catalogo import COLUMNAS
+    return COLUMNAS

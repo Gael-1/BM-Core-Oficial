@@ -11,7 +11,7 @@
       <label for="barcode-scanner" class="form-label">Buscar por código de barras, QR o SKU</label>
       <div class="input-group"><input id="barcode-scanner" name="q" class="form-control" placeholder="Escanea o escribe el código" required><button class="btn btn-primary" type="submit">Buscar</button></div>
     </form>
-    <div class="d-flex flex-wrap gap-3 mt-3"><a href="{% url 'inventory:alertas' %}">Revisar stock bajo</a><a href="{% url 'inventory:inventario_por_almacen' %}">Consultar por almacén</a></div>
+    <div class="d-flex flex-wrap gap-3 mt-3"><a href="{% url 'inventory:alertas' %}">Revisar stock bajo</a><a href="{% url 'inventory:inventario_por_almacen' %}">Consultar por almacén</a><a href="{% url 'inventory:etiquetas' %}">Etiquetas QR</a><a href="{% url 'inventory:exportar' %}">Exportar CSV</a>{% if puede_inventario %}<a href="{% url 'inventory:importar' %}">Importar CSV</a>{% endif %}</div>
   </div></div>
   <section class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-4">
     {% for producto in productos %}
