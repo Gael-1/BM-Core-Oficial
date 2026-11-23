@@ -9,6 +9,8 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.utils import timezone
 
+from django.db.models import Q
+
 from accounts.roles import ADMIN, ALMACEN
 
 from .models import AlertaStock, Inventario_Producto
@@ -17,10 +19,11 @@ logger = logging.getLogger(__name__)
 
 
 def destinatarios():
-    """Correos de administradores y almacenistas activos."""
+    """Correos de administradores, almacenistas y perfiles con permiso de inventario (activos)."""
     User = get_user_model()
     correos = (
-        User.objects.filter(is_active=True, groups__name__in=(ADMIN, ALMACEN))
+        User.objects.filter(is_active=True)
+        .filter(Q(groups__name__in=(ADMIN, ALMACEN)) | Q(groups__perfil_acceso__inventario=True))
         .exclude(email="")
         .values_list("email", flat=True)
         .distinct()

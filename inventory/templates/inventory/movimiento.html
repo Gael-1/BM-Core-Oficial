@@ -1,4 +1,5 @@
 {% extends "layout.html" %}
+{% load static %}
 {% block title %}Registrar movimiento{% endblock %}
 {% block body %}
 <div class="container py-3" style="max-width: 640px;">
@@ -14,8 +15,11 @@
     {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
     <div class="mb-3">
       <label for="escaneo-codigo" class="form-label">Escanear código de barras, QR o SKU</label>
+      <div class="input-group">
       <input id="escaneo-codigo" type="text" class="form-control" autocomplete="off" autofocus
              placeholder="Escanea o escribe el código y presiona Enter" data-url="{% url 'inventory:producto_por_codigo' %}">
+      <button type="button" class="btn btn-outline-secondary" data-escaner="#escaneo-codigo" title="Escanear con la cámara"><i class="fa-solid fa-camera"></i> Cámara</button>
+      </div>
       <div id="escaneo-estado" class="form-text" role="status" aria-live="polite"></div>
     </div>
     {% for field in form %}
@@ -54,4 +58,5 @@
   });
 })();
 </script>
+<script src="{% static 'js/escaner.js' %}"></script>
 {% endblock %}

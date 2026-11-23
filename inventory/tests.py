@@ -147,6 +147,14 @@ class InventoryTests(TestCase):
         response = self.client.get(reverse("inventory:inventario_por_almacen"), {"almacen_id": "incorrecto"})
         self.assertEqual(response.status_code, 400)
 
+    def test_pantallas_de_captura_ofrecen_escaner_con_camara(self):
+        self.client.force_login(self.usuario)
+        for nombre in ("buscar_codigo", "movimiento"):
+            with self.subTest(nombre=nombre):
+                response = self.client.get(reverse("inventory:" + nombre))
+                self.assertContains(response, "data-escaner=")
+                self.assertContains(response, "js/escaner.js")
+
     def test_alertas_incluyen_producto_sin_inventario(self):
         self.inventario.delete()
         request = RequestFactory().get("/inventory/alertas/")

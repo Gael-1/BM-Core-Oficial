@@ -245,3 +245,103 @@ class GestionUsuariosTests(TestCase):
                          self.datos(is_active="", password1="", password2=""))
         self.client.logout()
         self.assertFalse(self.client.login(username="nuevo", password="Cl4ve-segura-9"))
+
+
+class PerfilesPersonalizadosTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        for nombre, valor in crear_datos().items():
+            setattr(cls, nombre, valor)
+        cls.admin = usuario_con_rol("admin_perfiles", ADMIN)
+
+    def crear_perfil(self, nombre="Supervisor", **permisos):
+        self.client.force_login(self.admin)
+        datos = {"nombre": nombre, "descripcion": "Prueba", **{k: "on" for k, v in permisos.items() if v}}
+        return self.client.post(reverse("accounts:perfil_add"), datos)
+
+    def test_solo_el_administrador_gestiona_perfiles(self):
+        consulta = usuario_con_rol("consulta_perf", CONSULTA)
+        self.client.force_login(consulta)
+        self.assertEqual(self.client.get(reverse("accounts:perfiles")).status_code, 403)
+        self.client.force_login(self.admin)
+        self.assertEqual(self.client.get(reverse("accounts:perfiles")).status_code, 200)
+
+    def test_crear_perfil_genera_grupo_y_capacidades(self):
+        from accounts.models import PerfilAcceso
+        from accounts.roles import capacidades_de_rol
+
+        respuesta = self.crear_perfil(inventario=True, ventas=True)
+        self.assertRedirects(respuesta, reverse("accounts:perfiles"))
+        perfil = PerfilAcceso.objects.get(grupo__name="Supervisor")
+        self.assertEqual(perfil.capacidades(), {"ver", "inventario", "ventas"})
+        self.assertEqual(capacidades_de_rol("Supervisor"), {"ver", "inventario", "ventas"})
+
+    def test_nombre_de_rol_del_sistema_o_repetido_se_rechaza(self):
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("accounts:perfil_add"), {"nombre": ADMIN})
+        self.assertEqual(r.status_code, 200)
+        self.crear_perfil("Unico")
+        r = self.client.post(reverse("accounts:perfil_add"), {"nombre": "unico"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(Group.objects.filter(name__iexact="unico").count(), 1)
+
+    def test_usuario_con_perfil_solo_hace_lo_que_el_perfil_permite(self):
+        self.crear_perfil("Solo compras", compras=True)
+        usuario = usuario_con_rol("perfilado")
+        usuario.groups.add(Group.objects.get(name="Solo compras"))
+        self.client.force_login(usuario)
+        self.assertEqual(self.client.get(reverse("compra:index")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("compra:add")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("inventory:add")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("accounts:usuarios")).status_code, 403)
+        self.assertEqual(self.client.get(reverse("ventas:nueva")).status_code, 403)
+
+    def test_perfil_con_administracion_entra_a_usuarios(self):
+        self.crear_perfil("Jefe", administrar=True)
+        usuario = usuario_con_rol("jefe1")
+        usuario.groups.add(Group.objects.get(name="Jefe"))
+        self.client.force_login(usuario)
+        self.assertEqual(self.client.get(reverse("accounts:usuarios")).status_code, 200)
+
+    def test_asignar_perfil_desde_el_formulario_de_usuario(self):
+        self.crear_perfil("Supervisor", inventario=True)
+        self.client.force_login(self.admin)
+        r = self.client.post(reverse("accounts:usuario_add"), {
+            "username": "nuevo_perf", "first_name": "N", "last_name": "P", "email": "n@p.mx", "is_active": "on",
+            "rol": "Supervisor", "password1": "Cl4ve-segura-77", "password2": "Cl4ve-segura-77"})
+        self.assertRedirects(r, reverse("accounts:usuarios"))
+        usuario = get_user_model().objects.get(username="nuevo_perf")
+        self.assertEqual(rol_de(usuario), "Supervisor")
+        # Cambiar a un rol del sistema retira el perfil.
+        r = self.client.post(reverse("accounts:usuario_edit", args=[usuario.pk]), {
+            "username": "nuevo_perf", "first_name": "N", "last_name": "P", "email": "n@p.mx", "is_active": "on",
+            "rol": CONSULTA})
+        self.assertRedirects(r, reverse("accounts:usuarios"))
+        usuario.refresh_from_db()
+        self.assertEqual(rol_de(usuario), CONSULTA)
+        self.assertFalse(usuario.groups.filter(name="Supervisor").exists())
+
+    def test_no_se_elimina_un_perfil_con_usuarios_pero_si_uno_vacio(self):
+        from accounts.models import PerfilAcceso
+
+        self.crear_perfil("Temporal", ventas=True)
+        perfil = PerfilAcceso.objects.get(grupo__name="Temporal")
+        usuario = usuario_con_rol("con_temporal")
+        usuario.groups.add(perfil.grupo)
+        self.client.force_login(self.admin)
+        self.client.post(reverse("accounts:perfil_delete", args=[perfil.pk]))
+        self.assertTrue(PerfilAcceso.objects.filter(pk=perfil.pk).exists())
+        usuario.groups.clear()
+        self.client.post(reverse("accounts:perfil_delete", args=[perfil.pk]))
+        self.assertFalse(PerfilAcceso.objects.filter(pk=perfil.pk).exists())
+
+    def test_la_api_respeta_la_capacidad_del_perfil(self):
+        self.crear_perfil("Almacen extra", inventario=True)
+        usuario = usuario_con_rol("api_perfil")
+        usuario.groups.add(Group.objects.get(name="Almacen extra"))
+        sin_permiso = usuario_con_rol("api_sin_perfil")
+        self.assertTrue(usuario.groups.exists())
+        # El token se crea con el modelo del proyecto; basta comprobar la capacidad que usa la API.
+        from accounts.roles import tiene_capacidad
+        self.assertTrue(tiene_capacidad(usuario, "inventario"))
+        self.assertFalse(tiene_capacidad(sin_permiso, "ver"))

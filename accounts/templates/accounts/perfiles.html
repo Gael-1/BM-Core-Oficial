@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+{% block title %}Perfiles de acceso{% endblock %}
+{% block body %}
+<div class="container py-3">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div><h2>Perfiles personalizados</h2><p class="text-muted mb-0">Crea perfiles con permisos por módulo y asígnalos desde Usuarios.</p></div>
+    <div class="d-flex gap-2">
+      <a href="{% url 'accounts:usuarios' %}" class="btn btn-outline-secondary">Volver a usuarios</a>
+      <a href="{% url 'accounts:perfil_add' %}" class="btn btn-primary">+ Nuevo perfil</a>
+    </div>
+  </div>
+  {% if messages %}{% for m in messages %}<div class="alert alert-{{ m.tags|default:'info' }}">{{ m }}</div>{% endfor %}{% endif %}
+  <div class="card"><div class="table-responsive"><table class="table align-middle">
+    <thead><tr><th>Perfil</th><th>Descripción</th><th>Puede gestionar</th><th>Usuarios</th><th>Acciones</th></tr></thead>
+    <tbody>
+    {% for fila in perfiles %}
+      <tr>
+        <td>{{ fila.perfil.nombre }}</td>
+        <td>{{ fila.perfil.descripcion|default:"—" }}</td>
+        <td>{% if fila.modulos %}{{ fila.modulos|join:", " }}{% else %}Solo consultar{% endif %}</td>
+        <td>{{ fila.usuarios }}</td>
+        <td class="d-flex gap-2">
+          <a href="{% url 'accounts:perfil_edit' fila.perfil.pk %}" class="btn btn-outline-primary btn-sm">Editar</a>
+          <form method="post" action="{% url 'accounts:perfil_delete' fila.perfil.pk %}" onsubmit="return confirm('¿Eliminar este perfil?');">
+            {% csrf_token %}<button type="submit" class="btn btn-outline-danger btn-sm">Eliminar</button>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-center py-4">Aún no hay perfiles personalizados.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div></div>
+  <p class="small text-muted mt-3">Todo perfil puede consultar pantallas y reportes; las casillas agregan lo que puede modificar.</p>
+</div>
+{% endblock %}

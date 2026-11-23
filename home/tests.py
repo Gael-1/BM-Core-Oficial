@@ -58,3 +58,16 @@ class KpiTests(TestCase):
         respuesta = self.client.get(reverse("home:index"))
         self.assertContains(respuesta, "Indicadores clave")
         self.assertContains(respuesta, "$125.00")
+
+    def test_fragmento_de_kpis_se_actualiza_con_los_datos(self):
+        self.client.force_login(self.d["usuario"])
+        url = reverse("home:kpis")
+        self.assertContains(self.client.get(url), "$125.00")
+        inventario = self.d["inventario"]
+        inventario.cantidad = 20
+        inventario.save()
+        self.assertContains(self.client.get(url), "$250.00")
+
+    def test_fragmento_de_kpis_requiere_sesion(self):
+        respuesta = self.client.get(reverse("home:kpis"))
+        self.assertEqual(respuesta.status_code, 302)

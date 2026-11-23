@@ -7,8 +7,8 @@ from django.views.decorators.http import require_POST
 from inventory.services import ExistenciaInsuficiente
 
 from . import facturacion, services
-from .forms import ClienteForm, LineaVentaFormSet, VentaForm
-from .models import Cliente, EstatusVenta, Venta
+from .forms import ClienteForm, ConfiguracionVentasForm, LineaVentaFormSet, VentaForm
+from .models import Cliente, ConfiguracionVentas, EstatusVenta, Venta
 
 
 def index(request):
@@ -39,7 +39,10 @@ def nueva(request):
         except (services.VentaInvalida, ExistenciaInsuficiente) as error:
             form.add_error(None, str(error))
         else:
-            messages.success(request, f"Venta {venta.folio} registrada. Las existencias se descontaron.")
+            mensaje = f"Venta {venta.folio} registrada. Las existencias se descontaron."
+            if hasattr(venta, "prefactura"):
+                mensaje += f" Se generó la prefactura {venta.prefactura.numero}."
+            messages.success(request, mensaje)
             return redirect("ventas:detalle", pk=venta.pk)
     return render(request, "ventas/nueva.html", {"form": form, "formset": formset})
 
@@ -112,3 +115,14 @@ def prefactura_xml(request, pk):
     respuesta = HttpResponse(facturacion.construir_xml(venta.prefactura), content_type="application/xml; charset=utf-8")
     respuesta["Content-Disposition"] = f'attachment; filename="{venta.prefactura.numero}.xml"'
     return respuesta
+
+
+def configuracion(request):
+    """Reglas de automatización de ventas y facturación (solo administrador)."""
+    config = ConfiguracionVentas.obtener()
+    form = ConfiguracionVentasForm(request.POST if request.method == "POST" else None, instance=config)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Reglas de ventas guardadas.")
+        return redirect("ventas:configuracion")
+    return render(request, "ventas/configuracion.html", {"form": form})

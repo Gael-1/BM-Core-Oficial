@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block title %}Reglas de ventas{% endblock %}
+{% block body %}
+<div class="container py-3" style="max-width: 640px;">
+  <h2>Reglas de ventas</h2>
+  <p class="text-muted mb-4">Automatiza la facturación. La prefactura es un documento informativo; para facturas válidas ante el SAT hace falta conectar un proveedor de timbrado.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="form-check mb-1">{{ form.prefactura_automatica }}<label class="form-check-label" for="{{ form.prefactura_automatica.id_for_label }}">{{ form.prefactura_automatica.label }}</label></div>
+    <div class="form-text mb-4">{{ form.prefactura_automatica.help_text }}</div>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'ventas:index' %}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

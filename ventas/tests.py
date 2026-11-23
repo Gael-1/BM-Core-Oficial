@@ -403,3 +403,52 @@ class FacturacionTests(VentasBase):
         respuesta = self.client.post(reverse("api_v1:ventas"), json.dumps(cuerpo), content_type="application/json",
                                      HTTP_AUTHORIZATION=f"Bearer {token}")
         self.assertEqual(respuesta.status_code, 400)
+
+
+class PrefacturaAutomaticaTests(FacturacionTests):
+    """Regla opcional: al registrar una venta con cliente fiscal se genera sola la prefactura."""
+
+    def activar(self, valor=True):
+        from ventas.models import ConfiguracionVentas
+
+        config = ConfiguracionVentas.obtener()
+        config.prefactura_automatica = valor
+        config.save()
+
+    def test_apagada_por_defecto_no_genera_prefactura(self):
+        venta = self.venta(cliente=self.cliente)
+        self.assertFalse(hasattr(Venta.objects.get(pk=venta.pk), "prefactura"))
+
+    def test_encendida_genera_la_prefactura_con_cliente(self):
+        self.activar()
+        venta = self.venta(cantidad=2, cliente=self.cliente)
+        venta = Venta.objects.get(pk=venta.pk)
+        self.assertTrue(hasattr(venta, "prefactura"))
+        self.assertEqual(venta.prefactura.subtotal, Decimal("25.00"))
+
+    def test_encendida_pero_sin_cliente_solo_registra_la_venta(self):
+        self.activar()
+        venta = self.venta()
+        self.assertEqual(Venta.objects.get(pk=venta.pk).estatus, EstatusVenta.COMPLETADA)
+        self.assertFalse(hasattr(Venta.objects.get(pk=venta.pk), "prefactura"))
+
+    def test_un_cliente_con_datos_invalidos_no_deshace_la_venta(self):
+        from ventas.models import Cliente
+
+        self.activar()
+        malo = Cliente.objects.create(nombre="Malo", razon_social="MALO", rfc="XXX", regimen_fiscal=self.regimen,
+                                      codigo_postal="1")
+        antes = self.existencia()
+        venta = self.venta(cliente=malo)
+        self.assertEqual(self.existencia(), antes - 2)
+        self.assertFalse(hasattr(Venta.objects.get(pk=venta.pk), "prefactura"))
+
+    def test_solo_el_administrador_cambia_la_regla(self):
+        from ventas.models import ConfiguracionVentas
+
+        self.client.force_login(self.roles[ALMACEN])
+        self.assertEqual(self.client.get(reverse("ventas:configuracion")).status_code, 403)
+        self.client.force_login(self.roles[ADMIN])
+        r = self.client.post(reverse("ventas:configuracion"), {"prefactura_automatica": "on"})
+        self.assertRedirects(r, reverse("ventas:configuracion"))
+        self.assertTrue(ConfiguracionVentas.obtener().prefactura_automatica)

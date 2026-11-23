@@ -4,7 +4,10 @@
 <div class="container py-3">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div><h2>Usuarios y roles</h2><p class="text-muted mb-0">Quién puede entrar al sistema y qué puede hacer.</p></div>
-    <a href="{% url 'accounts:usuario_add' %}" class="btn btn-primary">+ Nuevo usuario</a>
+    <div class="d-flex gap-2">
+      <a href="{% url 'accounts:perfiles' %}" class="btn btn-outline-primary">Perfiles personalizados</a>
+      <a href="{% url 'accounts:usuario_add' %}" class="btn btn-primary">+ Nuevo usuario</a>
+    </div>
   </div>
   <div class="card"><div class="table-responsive"><table class="table align-middle">
     <thead><tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -30,6 +33,7 @@
       <li><strong>Almacenista:</strong> productos, categorías, movimientos, traspasos y recepción de mercancía.</li>
       <li><strong>Compras:</strong> proveedores y creación de órdenes de compra.</li>
       <li><strong>Consulta:</strong> solo ver pantallas y reportes.</li>
+      <li><strong>Perfiles personalizados:</strong> combinaciones de permisos por módulo que tú defines en «Perfiles personalizados».</li>
     </ul>
   </div></div>
 </div>

@@ -1,3 +1,6 @@
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.utils import timezone
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import F, Q
 from django.views.generic import TemplateView
@@ -36,6 +39,13 @@ class HomeView(LoginRequiredMixin, TemplateView):
 
             "ultimos_movimientos": movimientos,
             "kpi": calcular_kpis(),
+            "ahora": timezone.localtime(),
         })
 
         return context
+
+
+@login_required
+def kpis_parcial(request):
+    """Fragmento con los KPI; la portada lo consulta cada 30 s."""
+    return render(request, "home/_kpis.html", {"kpi": calcular_kpis(), "ahora": timezone.localtime()})

@@ -14,13 +14,13 @@ def session_timeout(request):
 
 
 def permisos_context(request):
-    """Banderas para mostrar u ocultar botones según el rol (el servidor igual valida)."""
-    from .roles import ADMIN, ALMACEN, COMPRAS, tiene_rol
+    """Banderas para mostrar u ocultar botones según los permisos (el servidor igual valida)."""
+    from .roles import ADMINISTRAR, COMPRAS_CAP, INVENTARIO, VENTAS, capacidades_de
 
-    usuario = request.user
+    capacidades = capacidades_de(request.user)
     return {
-        "puede_inventario": tiene_rol(usuario, (ADMIN, ALMACEN)),
-        "puede_ventas": tiene_rol(usuario, (ADMIN, ALMACEN)),
-        "puede_compras": tiene_rol(usuario, (ADMIN, COMPRAS)),
-        "puede_admin": tiene_rol(usuario, (ADMIN,)),
+        "puede_inventario": INVENTARIO in capacidades,
+        "puede_ventas": VENTAS in capacidades,
+        "puede_compras": COMPRAS_CAP in capacidades,
+        "puede_admin": ADMINISTRAR in capacidades,
     }

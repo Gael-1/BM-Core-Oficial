@@ -10,6 +10,7 @@ urlpatterns = [
     path("", lectura(views.index), name="index"),
     path("nueva/", gestion_ventas(views.nueva), name="nueva"),
     path("<int:pk>/", lectura(views.detalle), name="detalle"),
+    path("configuracion/", solo_admin(views.configuracion), name="configuracion"),
     path("clientes/", lectura(views.clientes), name="clientes"),
     path("clientes/nuevo/", gestion_ventas(views.cliente_add_edit), name="cliente_add"),
     path("clientes/<int:pk>/editar/", gestion_ventas(views.cliente_add_edit), name="cliente_edit"),

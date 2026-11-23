@@ -1,0 +1,20 @@
+<div class="panel-header">
+            <div>
+                <h3 id="kpi-titulo">Indicadores clave</h3>
+                <p>Valor, quiebres, rotación y gasto por proveedor.</p>
+            </div>
+            <a href="{% url 'reportes:inicio' %}" class="panel-link">Ver reportes <i class="fa-solid fa-arrow-right"></i></a>
+        </div>
+        <div class="row g-3 p-3">
+            <div class="col-6 col-lg-3"><span class="text-muted small">Valor del inventario</span><div class="fs-4 fw-semibold">${{ kpi.valor_inventario|floatformat:2 }}</div><small class="text-muted">{{ kpi.unidades_en_existencia|floatformat:"-2" }} unidades</small></div>
+            <div class="col-6 col-lg-3"><span class="text-muted small">Productos agotados</span><div class="fs-4 fw-semibold">{{ kpi.productos_agotados }}</div><small class="text-muted">Sin existencia</small></div>
+            <div class="col-6 col-lg-3"><span class="text-muted small">Rotación ({{ kpi.dias_rotacion }} días)</span><div class="fs-4 fw-semibold">{{ kpi.rotacion }}</div><small class="text-muted">{{ kpi.salidas_periodo|floatformat:"-2" }} salidas ÷ existencia</small></div>
+            <div class="col-12 col-lg-3">
+                <span class="text-muted small">Gasto por proveedor ({{ kpi.dias_gasto }} días)</span>
+                {% for g in kpi.gasto_proveedores %}
+                <div class="mt-1"><div class="d-flex justify-content-between small"><span>{{ g.proveedor__nombre }}</span><span>${{ g.total_gastado|floatformat:2 }}</span></div>
+                <div class="progress" style="height:6px;"><div class="progress-bar" style="width: {{ g.porcentaje }}%"></div></div></div>
+                {% empty %}<div class="small text-muted mt-1">Sin compras recibidas en el periodo.</div>{% endfor %}
+            </div>
+        </div>
+<div class="small text-muted px-3 pb-2">Actualizado: {{ ahora|time:"H:i:s" }} · se refresca cada 30 s</div>

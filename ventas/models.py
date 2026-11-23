@@ -120,3 +120,20 @@ class Prefactura(models.Model):
 
     def __str__(self):
         return self.numero
+
+
+class ConfiguracionVentas(models.Model):
+    """Reglas de automatización de ventas (un único registro)."""
+
+    prefactura_automatica = models.BooleanField(
+        default=False, verbose_name="Generar la prefactura automáticamente al registrar la venta",
+        help_text="Solo aplica a ventas con un cliente del catálogo (con RFC y datos fiscales completos).",
+    )
+
+    class Meta:
+        verbose_name = "Configuración de ventas"
+        verbose_name_plural = "Configuración de ventas"
+
+    @classmethod
+    def obtener(cls):
+        return cls.objects.get_or_create(pk=1)[0]

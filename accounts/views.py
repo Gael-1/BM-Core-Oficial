@@ -5,8 +5,8 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
-from accounts.models import UserProfile
-from .forms import LoginForm, UsuarioForm
+from accounts.models import PerfilAcceso, UserProfile
+from .forms import LoginForm, PerfilAccesoForm, UsuarioForm
 from .roles import rol_de
 from django.contrib.auth.decorators import login_required
 
@@ -55,3 +55,33 @@ def usuario_add_edit(request, pk=None):
         messages.success(request, "Usuario guardado correctamente.")
         return redirect("accounts:usuarios")
     return render(request, "accounts/usuario_form.html", {"form": form, "usuario": usuario})
+
+
+def perfiles(request):
+    lista = []
+    for perfil in PerfilAcceso.objects.select_related("grupo"):
+        lista.append({"perfil": perfil, "usuarios": perfil.grupo.user_set.count(),
+                      "modulos": [n for n, activo in (("Inventario", perfil.inventario), ("Compras", perfil.compras),
+                                                      ("Ventas", perfil.ventas), ("Administración", perfil.administrar)) if activo]})
+    return render(request, "accounts/perfiles.html", {"perfiles": lista})
+
+
+def perfil_add_edit(request, pk=None):
+    perfil = get_object_or_404(PerfilAcceso.objects.select_related("grupo"), pk=pk) if pk else None
+    form = PerfilAccesoForm(request.POST if request.method == "POST" else None, perfil=perfil)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Perfil guardado correctamente.")
+        return redirect("accounts:perfiles")
+    return render(request, "accounts/perfil_form.html", {"form": form, "perfil": perfil})
+
+
+def perfil_delete(request, pk):
+    perfil = get_object_or_404(PerfilAcceso.objects.select_related("grupo"), pk=pk)
+    if request.method == "POST":
+        if perfil.grupo.user_set.exists():
+            messages.error(request, "No se puede eliminar: hay usuarios con este perfil. Cámbiales el rol primero.")
+        else:
+            perfil.grupo.delete()
+            messages.success(request, "Perfil eliminado.")
+    return redirect("accounts:perfiles")

@@ -5,7 +5,7 @@ from inventory.models import Almacen, Producto
 from proveedores.models import RegimenFiscal
 
 from .facturacion import rfc_valido
-from .models import Cliente
+from .models import ConfiguracionVentas, Cliente
 
 
 class VentaForm(forms.Form):
@@ -90,3 +90,10 @@ class ClienteForm(forms.ModelForm):
         if not (len(cp) == 5 and cp.isdigit()):
             raise forms.ValidationError("El código postal debe tener 5 dígitos.")
         return cp
+
+
+class ConfiguracionVentasForm(forms.ModelForm):
+    class Meta:
+        model = ConfiguracionVentas
+        fields = ["prefactura_automatica"]
+        widgets = {"prefactura_automatica": forms.CheckboxInput(attrs={"class": "form-check-input"})}

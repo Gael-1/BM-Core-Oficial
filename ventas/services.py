@@ -5,10 +5,14 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+import logging
+
 from inventory import services as inventario
 from inventory.models import motivo_movimiento
 
-from .models import EstatusVenta, LineaVenta, OrigenVenta, Venta
+from .models import ConfiguracionVentas, EstatusVenta, LineaVenta, OrigenVenta, Venta
+
+logger = logging.getLogger(__name__)
 
 MAX_LINEAS = 100
 CENTAVOS = Decimal("0.01")
@@ -55,13 +59,30 @@ def crear_venta(usuario, almacen, lineas, cliente_nombre="", referencia=None, co
         raise VentaInvalida(f"Una venta admite hasta {MAX_LINEAS} productos.")
 
     try:
-        return _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente), True
+        venta = _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente)
+        _prefactura_automatica(venta, usuario)
+        return venta, True
     except IntegrityError:
         # Otra petición con la misma referencia ganó la carrera: se devuelve esa venta.
         previa = Venta.objects.filter(referencia_externa=referencia).first() if referencia else None
         if previa:
             return previa, False
         raise
+
+
+def _prefactura_automatica(venta, usuario):
+    """Si la regla está activa y la venta tiene cliente fiscal, genera la prefactura. Nunca interrumpe la venta."""
+    if venta.cliente_id is None or not ConfiguracionVentas.obtener().prefactura_automatica:
+        return None
+    from . import facturacion
+
+    try:
+        return facturacion.generar_prefactura(venta, venta.cliente, usuario)
+    except facturacion.PrefacturaInvalida as error:
+        logger.info("Prefactura automática omitida para %s: %s", venta.folio, error)
+    except Exception:  # la venta ya quedó registrada: un fallo de facturación no debe deshacerla
+        logger.exception("No se pudo generar la prefactura automática de %s", venta.folio)
+    return None
 
 
 def _registrar(usuario, almacen, lineas, cliente_nombre, referencia, comentarios, origen, cliente):
