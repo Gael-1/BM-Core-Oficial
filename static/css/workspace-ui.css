@@ -71,3 +71,11 @@ html.light { --ui-accent: #4338ca; }
 @media (prefers-reduced-motion:reduce) { .quick-action { transition:none; } }
 
 .movement-transfer { background:var(--ui-surface); color:var(--ui-accent); border:1px solid var(--ui-border); }
+
+/* Barra lateral: el menú se desplaza solo y el pie (usuario) nunca lo tapa */
+@media (min-width:993px) {
+  .navi { display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+  .navi .header-nav { flex-shrink:0; padding:1.25rem 0; }
+  .navi .menu { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; }
+  .navi .nav-footer { position:static; flex-shrink:0; width:100%; background:var(--c-nav-bg); }
+}
